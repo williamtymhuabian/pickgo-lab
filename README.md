@@ -105,6 +105,7 @@ docs/
   usage.md                 详细操作说明
   architecture.md          后续通用机器人平台设计草案
   mcp.md                   MCP 接入、函数入口与协议边界
+  blog/README.md           项目实践说明
 examples/pick_and_send.py   按步骤调用业务函数的示例
 ```
 
