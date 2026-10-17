@@ -4,6 +4,10 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 
 运动仿真可单文件离线运行；本机服务模式让网页、Python 动作函数和 MCP 共用一个机器人场景。视觉验证执行原 `det_color`、`det_rect` 和 HSV 配置。
 
+项目仓库：[williamtymhuabian/pickgo-lab](https://github.com/williamtymhuabian/pickgo-lab)。
+
+配套介绍：[个人博客实践文章](https://williamtymhuabian.github.io/personal-site/#/post/pickgo-lab)；需要发布到 CSDN 时，可使用 [Markdown 发布稿](docs/blog/pickgo-lab-csdn.md)。稿件尚未在 CSDN 自动发布。
+
 ## 快速开始
 
 ### 只看运动仿真
