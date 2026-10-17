@@ -6,8 +6,6 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 
 项目仓库：[williamtymhuabian/pickgo-lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
-配套介绍：[个人博客实践文章](https://williamtymhuabian.github.io/personal-site/#/post/pickgo-lab)；需要发布到 CSDN 时，可使用 [Markdown 发布稿](docs/blog/pickgo-lab-csdn.md)。稿件尚未在 CSDN 自动发布。
-
 ## 快速开始
 
 ### 只看运动仿真
