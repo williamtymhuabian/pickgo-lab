@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>PickGo Lab · 轻量移动抓取仿真</title>
+<style>
+  :root{color-scheme:dark;--bg:#10181d;--panel:#172228;--line:#2d3d44;--text:#e0e9e8;--muted:#9dafb4;--accent:#83d2bd;--ink:#102c26;--warn:#e5be66;--error:#ee9585}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 "Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button,select{color:var(--text);border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:8px 12px}button{cursor:pointer}button:hover:not(:disabled){border-color:var(--accent)}button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button:disabled,select:disabled,input:disabled{opacity:.38;cursor:default}button[aria-pressed="true"]{background:var(--accent);color:var(--ink);border-color:var(--accent)}input[type=range]{accent-color:var(--accent);width:100%;margin:6px 0}a{color:var(--accent)}
+  .app{max-width:1500px;margin:0 auto;padding:22px 28px 16px}.header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}.identity{display:flex;align-items:center;gap:15px}.mark{border:1px solid var(--accent);color:var(--accent);width:42px;height:42px;display:grid;place-items:center;font-size:23px;font-weight:600}.eyebrow{font:11px/1.4 Consolas,monospace;letter-spacing:2px;color:var(--muted)}h1{font-size:20px;line-height:1.5;font-weight:500;margin:2px 0 0}h2{font-size:14px;font-weight:500;margin:0}.offline{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}.dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}.layout{display:grid;grid-template-columns:minmax(0,1fr) 304px;gap:20px;align-items:start}.scene{min-width:0}.viewport{position:relative;overflow:hidden;background:#142128;border:1px solid var(--line);border-radius:10px}.viewbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--line);position:relative;z-index:1}.viewbar .eyebrow{letter-spacing:1px}.views{display:flex;gap:5px;flex-wrap:wrap}.views button{padding:5px 9px;font-size:12px;background:transparent}.views button[aria-pressed=true]{color:var(--accent);border-color:var(--accent);background:transparent}canvas{display:block;width:100%;height:min(64vh,640px);min-height:410px;touch-action:none;cursor:grab}canvas:active{cursor:grabbing}.viewfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 15px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}.legend{display:flex;gap:14px;flex-wrap:wrap}.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:7px;height:7px;background:var(--accent);display:inline-block}.legend i.obstacle{background:#b9a791}.legend i.route{height:2px;width:13px}.livebar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0 13px;border-bottom:1px solid var(--line)}.status{font-size:12px;color:var(--accent);white-space:nowrap}.phase{font-size:15px;margin-top:3px}.telemetry{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:15px 0}.datum span{display:block;color:var(--muted);font-size:12px}.datum output{display:block;font:13px/1.6 Consolas,monospace;margin-top:4px}.hint{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.7}.aside{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}.aside-header{display:flex;justify-content:space-between;gap:12px;margin-bottom:17px}.index{color:var(--muted);font:11px Consolas,monospace}.label{font-size:12px;color:var(--muted);display:block;margin-bottom:7px}.fields{display:grid;grid-template-columns:1fr 82px;gap:10px}.fields select{width:100%;padding:9px 10px;min-width:0}.actions{display:grid;grid-template-columns:1fr 72px;gap:8px;margin:13px 0 9px}.primary{background:var(--accent);color:var(--ink);border-color:var(--accent);font-weight:500}.secondary-actions{display:flex;justify-content:space-between;gap:8px}.secondary-actions button{flex:1;background:transparent;font-size:12px;padding:6px 8px}.danger{color:var(--error)}.progress{height:3px;background:var(--line);margin:21px 0 15px}.progress div{height:100%;background:var(--accent);width:0;transition:width .2s}.steps{list-style:none;padding:0;margin:0}.steps li{display:flex;gap:12px;align-items:center;padding:9px 0;color:var(--muted);font-size:13px}.steps .number{width:21px;height:21px;border:1px solid var(--line);border-radius:50%;display:grid;place-items:center;font:11px Consolas,monospace;flex-shrink:0}.steps li.active{color:var(--text)}.steps li.active .number{background:var(--accent);color:var(--ink);border-color:var(--accent)}.steps li.done .number{color:var(--accent);border-color:var(--accent)}.separator{border:0;border-top:1px solid var(--line);margin:18px 0}summary{cursor:pointer;color:var(--muted);font-size:13px}details[open] summary{margin-bottom:12px}.manual-note{font-size:12px;color:var(--muted);margin:8px 0 12px}.drive{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:12px 0}.drive button{padding:7px 4px;font-size:12px;touch-action:none}.drive .forward{grid-column:2}.drive .left{grid-column:1}.drive .back{grid-column:2}.drive .right{grid-column:3}.joint-label{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:8px}.joint-label output{font-family:Consolas,monospace}.log-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px}.log-head button{padding:4px 8px;font-size:12px;background:transparent}.events{list-style:none;padding:0;margin:7px 0 0;font-size:12px}.events li{display:flex;gap:12px;padding:5px 0;color:var(--muted)}.events time{font:11px/1.8 Consolas,monospace;min-width:43px;color:var(--accent)}.foot{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:18px}.message{color:var(--error);font-size:12px;min-height:18px;margin-top:8px}.check{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}.check input{accent-color:var(--accent)}
+  @media(min-width:1200px){canvas{min-height:510px}}@media(max-width:920px){.app{padding:18px}.layout{grid-template-columns:minmax(0,1fr) 268px;gap:14px}.aside{padding:15px}canvas{min-height:390px;height:55vh}.identity{gap:10px}h1{font-size:18px}.telemetry{grid-template-columns:1fr 1fr}.datum:last-child{grid-column:1/-1}}@media(max-width:720px){.layout{grid-template-columns:1fr}.app{padding:13px}.header{margin-bottom:14px}.offline{display:flex;font-size:11px}.eyebrow{letter-spacing:1px}canvas{height:390px;min-height:320px}.viewbar{flex-wrap:wrap;padding:10px}.aside{padding:17px}.steps{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.telemetry{grid-template-columns:repeat(3,1fr)}.datum:last-child{grid-column:auto}.viewfoot{font-size:11px}.foot{line-height:1.7}}@media(max-width:390px){.telemetry{grid-template-columns:1fr 1fr}.datum:last-child{grid-column:1/-1}.views button{padding:5px 7px}.steps{grid-template-columns:1fr}.header .eyebrow{font-size:10px}h1{font-size:17px}.livebar{align-items:start}.phase{font-size:14px}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="header">
+    <div class="identity"><div class="mark" aria-hidden="true">PG</div><div><div class="eyebrow">PICKGO LAB / MOBILE ROBOT</div><h1>PickGo Lab · 移动抓取仿真</h1></div></div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px"><a href="vision.html">相机与原代码 →</a><div class="offline" id="backend-mode" role="status">检查仿真连接中</div></div>
+  </header>
+  <div class="layout">
+    <section class="scene" aria-label="机器人三维场景">
+      <div class="viewport">
+        <div class="viewbar"><span class="eyebrow">SCENE 01 / PICK & DELIVER</span><div class="views" aria-label="观察视角"><button data-view="iso" aria-pressed="true">三维</button><button data-view="top" aria-pressed="false">俯视</button><button data-view="side" aria-pressed="false">侧视</button><button id="follow" aria-pressed="false">跟随</button></div></div>
+        <canvas id="scene" tabindex="0" aria-label="底盘与四轴机械臂的三维运动学仿真。拖动旋转、滚轮缩放；手动调试展开后，可用方向键移动已收臂的底盘。"></canvas>
+        <div class="viewfoot"><div class="legend"><span><i></i>机器人</span><span><i class="route"></i>规划路径</span><span><i class="obstacle"></i>障碍物</span></div><span>拖动旋转 · 滚轮缩放</span></div>
+      </div>
+      <div class="livebar"><div><div class="eyebrow">CURRENT ACTION</div><div class="phase" id="phase" role="status" aria-live="polite">准备就绪</div></div><span class="status" id="status">IDLE / 空闲</span></div>
+      <div class="telemetry" aria-label="实时状态">
+        <div class="datum"><span>底盘位置 / m</span><output id="base-pose">−1.550 / −1.020</output></div>
+        <div class="datum"><span>夹爪 TCP / m</span><output id="tool-pose">—</output></div>
+        <div class="datum"><span>目标状态 / 仿真时间</span><output id="payload">取物台 / 0.0 s</output></div>
+      </div>
+      <div class="log-head"><h2>事件记录</h2><button id="export">导出状态 JSON</button></div><ol class="events" id="events" aria-label="最近事件"></ol>
+    </section>
+    <aside class="aside" aria-label="任务与调试控制">
+      <div class="aside-header"><h2>搬运任务</h2><span class="index" id="task-index">TASK / —</span></div>
+      <div class="fields"><label><span class="label">目标物体</span><select id="target"><option value="red">红色方块</option><option value="blue">蓝色方块</option><option value="yellow">黄色方块</option></select></label><label><span class="label">播放速度</span><select id="speed"><option value="1">1×</option><option value="3" selected>3×</option><option value="6">6×</option></select></label></div>
+      <div class="actions"><button id="start" class="primary">开始搬运</button><button id="pause" disabled>暂停</button></div>
+      <div class="secondary-actions"><button id="reset">重置场景</button><button id="stop" class="danger" disabled>停止任务</button></div>
+      <div id="message" class="message" role="alert"></div>
+      <div class="progress" role="progressbar" aria-label="任务进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress"><div></div></div>
+      <ol class="steps" id="steps"><li><span class="number">1</span>前往取物点</li><li><span class="number">2</span>停稳与虚拟感知</li><li><span class="number">3</span>对位、抓取、抬升</li><li><span class="number">4</span>托盘固定与收臂</li><li><span class="number">5</span>绕障运输</li><li><span class="number">6</span>取出与投放</li><li><span class="number">7</span>收臂、完成核验</li></ol>
+      <hr class="separator">
+      <details id="manual"><summary>手动调试</summary><div class="manual-note">空闲时可调关节；先收臂再移动。方向键 / WASD 仅在此面板展开且未编辑输入时生效。手动夹爪开合不触发抓取。</div>
+        <div class="drive"><button class="forward" data-drive="forward" aria-label="按住前进">前进</button><button class="left" data-drive="left" aria-label="按住左转">左转</button><button class="back" data-drive="back" aria-label="按住后退">后退</button><button class="right" data-drive="right" aria-label="按住右转">右转</button></div>
+        <button id="stow" style="width:100%">收回运输位</button>
+        <label class="joint-label" for="j0"><span>J1 · 底座回转</span><output id="o0">0°</output></label><input id="j0" type="range" min="-180" max="180" step="1" value="0">
+        <label class="joint-label" for="j1"><span>J2 · 肩关节</span><output id="o1">79°</output></label><input id="j1" type="range" min="-20" max="151" step="1" value="79">
+        <label class="joint-label" for="j2"><span>J3 · 肘关节</span><output id="o2">−136°</output></label><input id="j2" type="range" min="-169" max="0" step="1" value="-136">
+        <label class="joint-label" for="j3"><span>J4 · 腕关节</span><output id="o3">−33°</output></label><input id="j3" type="range" min="-200" max="126" step="1" value="-33">
+        <label class="joint-label" for="jaw"><span>夹爪开口</span><output id="jaw-value">90 mm</output></label><input id="jaw" type="range" min="20" max="105" step="1" value="90">
+      </details>
+      <hr class="separator"><label class="check"><input type="checkbox" id="show-path" checked> 显示路线和行驶轨迹</label>
+      <p class="hint">四轴机械臂＋平行夹爪。运动时收臂，抓取时停车；物体经车载托盘运输。</p>
+    </aside>
+  </div>
+  <footer class="foot"><span>运动学仿真 · 虚拟感知 · 底盘圆形避障</span><span>不含动力学、抓取力及完整机械臂碰撞检测 · 不连接真实设备</span></footer>
+</main>
+<script id="sim-core">
+/* Offline kinematic robot simulator. No dependencies, no hardware transport. */
+(function (scope) {
+  'use strict';
+  const PI = Math.PI;
+  const clamp = (x,a,b) => Math.max(a,Math.min(b,x));
+  const angle = x => Math.atan2(Math.sin(x),Math.cos(x));
+  const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y,(a.z||0)-(b.z||0));
+  const CONFIG = Object.freeze({ l1:.28,l2:.25,tool:.09,shoulder:.34,radius:.265,planningRadius:.30,wheelTrack:.39,wheelRadius:.075 });
+  const STOW = Object.freeze([0,1.38,-2.38,-.5707963268]);
+  const LIMITS = Object.freeze([[-PI,PI],[-.35,2.65],[-2.95,0],[-3.5,2.2]]);
+  const OBSTACLES = Object.freeze([
+    {name:'取物台',x:-1.25,y:.96,w:.88,d:.60,h:.34},
+    {name:'投放台',x:1.25,y:.98,w:.88,d:.60,h:.34},
+    {name:'障碍物',x:0,y:-.12,w:.62,d:.60,h:.48}
+  ]);
+  function local(base,x,y,z) {
+    const c=Math.cos(base.yaw),s=Math.sin(base.yaw);
+    return {x:base.x+c*x-s*y,y:base.y+s*x+c*y,z};
+  }
+  function fk(base,q) {
+    const heading=base.yaw+q[0],c=Math.cos(heading),s=Math.sin(heading);
+    const p0={x:base.x,y:base.y,z:CONFIG.shoulder};
+    let r=CONFIG.l1*Math.cos(q[1]),z=CONFIG.shoulder+CONFIG.l1*Math.sin(q[1]);
+    const p1={x:base.x+c*r,y:base.y+s*r,z};
+    r+=CONFIG.l2*Math.cos(q[1]+q[2]); z+=CONFIG.l2*Math.sin(q[1]+q[2]);
+    const p2={x:base.x+c*r,y:base.y+s*r,z};
+    r+=CONFIG.tool*Math.cos(q[1]+q[2]+q[3]);z+=CONFIG.tool*Math.sin(q[1]+q[2]+q[3]);
+    return [p0,p1,p2,{x:base.x+c*r,y:base.y+s*r,z}];
+  }
+  function ik(base,target,pitch=-PI/2) {
+    const dx=target.x-base.x,dy=target.y-base.y;
+    const r=Math.hypot(dx,dy)-CONFIG.tool*Math.cos(pitch);
+    const h=target.z-CONFIG.shoulder-CONFIG.tool*Math.sin(pitch);
+    const cosine=(r*r+h*h-CONFIG.l1**2-CONFIG.l2**2)/(2*CONFIG.l1*CONFIG.l2);
+    if(!Number.isFinite(cosine)||cosine < -1-1e-8||cosine > 1+1e-8) throw Error('OUT_OF_REACH：目标超出机械臂工作空间');
+    const elbow=-Math.acos(clamp(cosine,-1,1));
+    const shoulder=Math.atan2(h,r)-Math.atan2(CONFIG.l2*Math.sin(elbow),CONFIG.l1+CONFIG.l2*Math.cos(elbow));
+    const q=[angle(Math.atan2(dy,dx)-base.yaw),shoulder,elbow,pitch-shoulder-elbow];
+    q.forEach((v,i)=>{if(v<LIMITS[i][0]-1e-8||v>LIMITS[i][1]+1e-8) throw Error('JOINT_LIMIT：关节 '+(i+1)+' 超限');});
+    return q;
+  }
+  function blocked(p,r=CONFIG.planningRadius) {
+    if(p.x < -2.35+r||p.x > 2.35-r||p.y < -1.55+r||p.y > 1.65-r) return true;
+    return OBSTACLES.some(o=>{
+      const dx=Math.max(Math.abs(p.x-o.x)-o.w/2,0),dy=Math.max(Math.abs(p.y-o.y)-o.d/2,0);
+      return dx*dx+dy*dy < r*r;
+    });
+  }
+  function segmentFree(a,b,r=CONFIG.planningRadius) {
+    const count=Math.max(1,Math.ceil(distance(a,b)/.025));
+    for(let i=0;i<=count;i++) if(blocked({x:a.x+(b.x-a.x)*i/count,y:a.y+(b.y-a.y)*i/count},r))return false;
+    return true;
+  }
+  function planPath(start,goal) {
+    if(blocked(start)||blocked(goal))throw Error('NAV_INVALID：起点或终点没有足够底盘间隙');
+    if(segmentFree(start,goal))return [{x:start.x,y:start.y},{x:goal.x,y:goal.y}];
+    const size=.10,nx=48,ny=33;
+    const point=id=>({x:-2.35+(id%nx)*size,y:-1.55+Math.floor(id/nx)*size});
+    const idFor=p=>clamp(Math.round((p.x+2.35)/size),0,nx-1)+nx*clamp(Math.round((p.y+1.55)/size),0,ny-1);
+    const a=idFor(start),b=idFor(goal),open=[a],closed=new Set(),prev=new Map(),cost=new Map([[a,0]]);
+    const score=id=>(cost.get(id)??Infinity)+distance(point(id),point(b));
+    let found=false;
+    while(open.length) {
+      open.sort((u,v)=>score(v)-score(u)); const cur=open.pop();
+      if(cur===b){found=true;break;}
+      if(closed.has(cur))continue;closed.add(cur);
+      const cx=cur%nx,cy=Math.floor(cur/nx),p=point(cur);
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+        if((!dx&&!dy)||cx+dx<0||cx+dx>=nx||cy+dy<0||cy+dy>=ny)continue;
+        const next=cur+dx+dy*nx;
+        if(closed.has(next)||!segmentFree(p,point(next)))continue;
+        const nc=cost.get(cur)+Math.hypot(dx,dy)*size;
+        if(nc<(cost.get(next)??Infinity)){cost.set(next,nc);prev.set(next,cur);open.push(next);}
+      }
+    }
+    if(!found)throw Error('NAV_NO_PATH：没有可行路径');
+    const ids=[b];while(ids[ids.length-1]!==a)ids.push(prev.get(ids[ids.length-1]));
+    const raw=[{x:start.x,y:start.y},...ids.reverse().map(point),{x:goal.x,y:goal.y}];
+    const result=[raw[0]];let i=0;
+    while(i<raw.length-1){let j=raw.length-1;while(j>i+1&&!segmentFree(raw[i],raw[j]))j--;if(!segmentFree(raw[i],raw[j]))throw Error('NAV_NO_PATH：网格连接失败');result.push(raw[j]);i=j;}
+    return result;
+  }
+  class Simulation {
+    constructor(){this.reset();}
+    reset(){
+      this.base={x:-1.55,y:-1.02,yaw:0,v:0,w:0,left:0,right:0};
+      this.q=[...STOW];this.aperture=.09;this.time=0;this.status='IDLE';this.phase='准备就绪';this.major=0;
+      this.logs=[];this.path=[];this.trail=[];this.queue=[];this.index=0;this.active=null;this.held=null;this.selected='red';
+      this.objects=[{id:'red',name:'红色方块',color:'#e87768',x:-1.48,y:.76,z:.375,mode:'source'},
+        {id:'blue',name:'蓝色方块',color:'#6c9ee4',x:-1.25,y:.76,z:.375,mode:'source'},
+        {id:'yellow',name:'黄色方块',color:'#e5be66',x:-1.02,y:.76,z:.375,mode:'source'}];
+      this.record('就绪：选择目标，开始搬运。');return this;
+    }
+    record(message){this.logs.unshift({time:Number(this.time.toFixed(2)),message});this.logs=this.logs.slice(0,80);}
+    target(){return this.objects.find(o=>o.id===this.selected);}
+    tray(z=.235){return local(this.base,-.15,0,z);}
+    tool(){return fk(this.base,this.q)[3];}
+    stowed(){return this.q.every((v,i)=>Math.abs(v-STOW[i])<.025);}
+    start(id='red'){
+      if(this.status==='RUNNING'||this.status==='PAUSED')throw Error('BUSY：请先结束或重置当前任务');
+      const object=this.objects.find(o=>o.id===id);
+      if(!object||object.mode!=='source')throw Error('TARGET_UNAVAILABLE：目标已经被搬走，请重置');
+      if(this.held||this.objects.some(o=>o.mode==='tray'))throw Error('PAYLOAD_OCCUPIED：请先重置未完成任务');
+      this.selected=id;this.status='RUNNING';this.index=0;this.active=null;
+      const source={x:object.x,y:object.y,z:object.z},drop={x:1.25+(['red','blue','yellow'].indexOf(id)-1)*.19,y:.78,z:.375};
+      const pose=(label,target,major)=>({type:'pose',label,target,major});
+      const joint=(label,q,major)=>({type:'joint',label,q,major});
+      const grip=(label,opening,effect,major)=>({type:'grip',label,opening,effect,major});
+      const wait=(label,duration,major)=>({type:'wait',label,duration,major});
+      const front=()=>local(this.base,.18,0,.49),trayPre=()=>this.tray(.36);
+      this.queue=[
+        joint('检查并收拢机械臂',STOW,0),
+        {type:'nav',label:'导航到取物台',goal:{x:object.x,y:.32,yaw:PI/2},major:0},wait('底盘停稳与工位对位',.7,1),
+        wait('虚拟感知：读取目标几何位置',.8,1),pose('机械臂进入安全过渡位',front,2),
+        pose('移动到预抓取位',()=>({...source,z:source.z+.10}),2),grip('张开夹爪',.10,null,2),
+        pose('下降接近目标',()=>source,2),grip('闭爪并验证目标距离',.061,'attach',2),wait('确认夹持状态',.45,2),
+        pose('抬升目标',()=>({...source,z:source.z+.10}),2),pose('带物收回过渡位',front,3),
+        pose('转向车载托盘',trayPre,3),pose('放入车载托盘',()=>this.tray(),3),grip('释放到托盘并固定',.10,'tray',3),
+        pose('从托盘退出',trayPre,3),joint('收拢机械臂，允许底盘移动',STOW,3),
+        {type:'nav',label:'绕开障碍，运输到投放台',goal:{x:drop.x,y:.34,yaw:PI/2},major:4},wait('投放工位停稳对位',.7,4),
+        pose('到托盘预抓位',trayPre,5),pose('从托盘重新抓取',()=>this.tray(),5),grip('闭爪取出托盘物体',.061,'attach',5),
+        pose('从托盘抬升',trayPre,5),pose('转向投放台过渡位',front,5),pose('到达预投放位',()=>({...drop,z:drop.z+.10}),5),
+        pose('下降到投放位',()=>drop,5),grip('释放目标并核验投放',.10,'deliver',5),pose('退出投放区域',()=>({...drop,z:drop.z+.10}),5),
+        pose('机械臂回过渡位',front,6),joint('回到运输位',STOW,6),wait('任务完成核验',.4,6)
+      ];
+      this.record('任务开始：'+object.name+' → 投放台');return this;
+    }
+    pause(){if(this.status==='RUNNING'){this.status='PAUSED';this.base.v=0;this.base.w=0;this.base.left=0;this.base.right=0;this.record('任务暂停，保持当前位置。');}}
+    resume(){if(this.status==='PAUSED'){this.status='RUNNING';this.record('继续当前任务。');}}
+    cancel(){if(this.status==='RUNNING'||this.status==='PAUSED'){this.status='CANCELED';this.phase='已停止，保留物体状态';this.base.v=0;this.base.w=0;this.base.left=0;this.base.right=0;this.path=[];this.record('仿真任务已停止；物体状态保留，可重置。');}}
+    fail(message){this.status='FAILED';this.phase=message;this.base.v=0;this.base.w=0;this.base.left=0;this.base.right=0;this.record(message);}
+    initAction(a){
+      this.phase=a.label;this.major=a.major;this.record(a.label);
+      const active={...a,elapsed:0};
+      if(a.type==='nav'){
+        if(!this.stowed()||this.held)throw Error('INTERLOCK：机械臂未收拢或物体未固定');
+        this.path=planPath(this.base,a.goal);active.waypoint=1;
+      }
+      if(a.type==='joint'||a.type==='pose'){
+        active.from=[...this.q];active.to=a.type==='pose'?ik(this.base,a.target()):[...a.q];
+        active.duration=Math.max(.25,...active.to.map((v,i)=>Math.abs(v-this.q[i])/1.05));
+      }
+      if(a.type==='grip'){active.from=this.aperture;active.duration=.6;}
+      this.active=active;
+    }
+    updatePayload(){
+      for(const object of this.objects){
+        if(object.mode==='held')Object.assign(object,this.tool());
+        if(object.mode==='tray')Object.assign(object,this.tray());
+      }
+    }
+    gripEffect(effect){
+      if(!effect)return;
+      const object=this.target();
+      if(effect==='attach'){
+        if(!['source','tray'].includes(object.mode)||distance(this.tool(),object)>.025)throw Error('GRASP_FAILED：夹爪未对准目标');
+        object.mode='held';this.held=object.id;
+      }else if(effect==='tray'){
+        if(this.held!==object.id||distance(this.tool(),this.tray())>.025)throw Error('TRAY_FAILED：托盘位置不匹配');
+        object.mode='tray';this.held=null;
+      }else if(effect==='deliver'){
+        if(this.held!==object.id)throw Error('PLACE_FAILED：未持有目标');
+        object.mode='delivered';this.held=null;
+      }
+      this.updatePayload();
+    }
+    advanceNav(a,dt){
+      if(a.waypoint>=this.path.length){
+        const error=angle(a.goal.yaw-this.base.yaw);
+        if(Math.abs(error)<.012){this.base.yaw=a.goal.yaw;this.base.v=0;this.base.w=0;this.base.left=0;this.base.right=0;this.path=[];return true;}
+        this.integrate(0,clamp(error*3,-1.35,1.35),dt);return false;
+      }
+      const p=this.path[a.waypoint],dx=p.x-this.base.x,dy=p.y-this.base.y,dist=Math.hypot(dx,dy);
+      if(dist<.017){a.waypoint++;return false;}
+      const error=angle(Math.atan2(dy,dx)-this.base.yaw);
+      const v=Math.abs(error)>.30?0:Math.min(.33,dist*2.8)*Math.max(0,Math.cos(error));
+      this.integrate(v,clamp(error*4,-1.65,1.65),dt);return false;
+    }
+    integrate(v,w,dt){
+      const yaw=angle(this.base.yaw+w*dt),x=this.base.x+v*Math.cos(this.base.yaw+w*dt/2)*dt,y=this.base.y+v*Math.sin(this.base.yaw+w*dt/2)*dt;
+      if(!segmentFree(this.base,{x,y},CONFIG.radius))throw Error('BASE_COLLISION：底盘触及障碍边界');
+      Object.assign(this.base,{x,y,yaw,v,w,left:(v-w*CONFIG.wheelTrack/2)/CONFIG.wheelRadius,right:(v+w*CONFIG.wheelTrack/2)/CONFIG.wheelRadius});
+      const last=this.trail[this.trail.length-1];if(!last||distance(last,this.base)>.035){this.trail.push({x,y});if(this.trail.length>1200)this.trail.shift();}
+    }
+    step(dt){
+      if(this.status!=='RUNNING')return;
+      this.time+=dt;
+      try{
+        if(!this.active){if(this.index>=this.queue.length){
+          if(this.target().mode!=='delivered'||!this.stowed())throw Error('VERIFY_FAILED：任务后置条件未满足');
+          this.status='SUCCEEDED';this.phase='搬运完成';this.record('任务成功：目标已投放，机械臂已收拢。');return;
+        }this.initAction(this.queue[this.index]);}
+        const a=this.active;a.elapsed+=dt;let done=false;
+        if(a.type==='nav')done=this.advanceNav(a,dt);
+        else if(a.type==='wait')done=a.elapsed>=a.duration;
+        else if(a.type==='joint'||a.type==='pose'){
+          const t=clamp(a.elapsed/a.duration,0,1),s=t*t*t*(10-15*t+6*t*t);
+          this.q=a.from.map((v,i)=>v+(a.to[i]-v)*s);done=t>=1;
+        }else if(a.type==='grip'){
+          const t=clamp(a.elapsed/a.duration,0,1);this.aperture=a.from+(a.opening-a.from)*t;
+          done=t>=1;if(done)this.gripEffect(a.effect);
+        }
+        this.updatePayload();
+        if(done){this.index++;this.active=null;}
+      }catch(error){this.fail(error.message);}
+    }
+    tick(dt){
+      if(!Number.isFinite(dt)||dt<0||dt>5)throw Error('Invalid simulation timestep');
+      let remaining=dt;while(remaining>1e-9){const t=Math.min(.02,remaining);this.step(t);remaining-=t;}
+    }
+    manualDrive(v,w,dt){
+      if(!['IDLE','SUCCEEDED','CANCELED'].includes(this.status))return false;
+      if(!this.stowed()||this.held)return false;
+      try{this.integrate(clamp(v,-.25,.25),clamp(w,-1.3,1.3),clamp(dt,0,.05));this.updatePayload();return true;}
+      catch(error){this.base.v=0;this.base.w=0;this.base.left=0;this.base.right=0;return false;}
+    }
+    setJoint(i,value){
+      if(!['IDLE','SUCCEEDED','CANCELED'].includes(this.status))return false;
+      if(!Number.isInteger(i)||i<0||i>3||!Number.isFinite(value))return false;
+      this.q[i]=clamp(value,...LIMITS[i]);this.updatePayload();return true;
+    }
+    snapshot(){return {version:1,kind:'kinematic-simulation',time:this.time,status:this.status,phase:this.phase,base:{...this.base},joints:[...this.q],aperture:this.aperture,tool:{...this.tool()},objects:this.objects.map(o=>({...o})),events:this.logs.map(o=>({...o}))};}
+  }
+  const api=Object.freeze({Simulation,CONFIG,STOW,LIMITS,OBSTACLES,fk,ik,local,blocked,segmentFree,planPath,distance,angle,clamp});
+  scope.RobotSim=api;
+  if(typeof module!=='undefined'&&module.exports)module.exports=api;
+})(typeof globalThis!=='undefined'?globalThis:this);
+
+</script>
+<script>
+(function(){
+ 'use strict';
+ const S=RobotSim,sim=new S.Simulation(),$=id=>document.getElementById(id),canvas=$('scene'),ctx=canvas.getContext('2d');
+ const camera={azimuth:-1.06,elevation:.74,zoom:1,follow:false};
+ let width=800,height=500,dirty=true,last=performance.now(),lastDraw=0,lastUI=0,pointer=null,drive=null;
+ const keys=new Set();
+ let mode=location.protocol==='file:'?'offline':'checking',connected=false,pending=0,lastDrive=0,remoteState=null;
+ function applyState(state){
+   if(remoteState&&state.instance_id===remoteState.instance_id&&state.revision<remoteState.revision)return;
+   remoteState=state;sim.base=state.base;sim.q=state.joints;sim.aperture=state.aperture;sim.time=state.time;
+   sim.status=state.status;sim.phase=state.phase;sim.objects=state.objects;sim.logs=state.events;
+   sim.path=state.path;sim.trail=state.trail;sim.selected=state.selected;sim.major=state.major;
+   sim.index=state.index;sim.queue=Array(state.total);sim.held=state.held;
+   $('target').value=state.selected;$('speed').value=String(state.speed);dirty=true;
+ }
+ async function pollState(){
+   if(mode==='offline')return;
+   try{
+     const response=await fetch('/api/robot/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
+     if(response.status===404&&mode==='checking'){mode='offline';updateUI();return;}
+     const state=await response.json();if(!response.ok)throw Error(state.error||'仿真服务未连接');
+     applyState(state);if(!connected)$('message').textContent='';mode='shared';connected=true;
+   }catch(error){mode='disconnected';connected=false;$('message').textContent='共享仿真连接中断，请检查 app.py；重新连接后同步状态。';}
+   updateUI();setTimeout(pollState,200);
+ }
+ async function command(name,params={}){
+   if(!connected)throw Error('共享仿真尚未连接');
+   const response=await fetch('/api/robot/command',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({command:name,params,source:'web'}),signal:AbortSignal.timeout(6000)});
+   const state=await response.json();if(!response.ok)throw Error(state.error||'动作失败');applyState(state);
+ }
+ const add=(a,b)=>a.map((v,i)=>v+b[i]),sub=(a,b)=>a.map((v,i)=>v-b[i]),mul=(a,s)=>a.map(v=>v*s),dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0),cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+ const norm=a=>{const d=Math.hypot(...a)||1;return mul(a,1/d);},arr=p=>[p.x,p.y,p.z||0];
+ function shade(color,f){const n=parseInt(color.slice(1),16);return 'rgb('+[n>>16&255,n>>8&255,n&255].map(v=>Math.round(S.clamp(v*f,0,255))).join(',')+')';}
+ let faces=[],basis,focus,scale;
+ function prepare(){
+   const ca=Math.cos(camera.azimuth),sa=Math.sin(camera.azimuth),ce=Math.cos(camera.elevation),se=Math.sin(camera.elevation);
+   basis={right:[-sa,ca,0],up:[-ca*se,-sa*se,ce],eye:[ca*ce,sa*ce,se]};
+   const extentX=4.7*Math.abs(sa)+3.2*Math.abs(ca),extentY=4.7*Math.abs(ca*se)+3.2*Math.abs(sa*se)+.7*ce;
+   scale=Math.min(width/(extentX+.25),height/(extentY+.25))*.91*camera.zoom;
+   focus=camera.follow?[sim.base.x,sim.base.y,.30]:[0,.08,.16];
+ }
+ function project(p){const a=sub(p,focus);return {x:width/2+dot(a,basis.right)*scale,y:height*.52-dot(a,basis.up)*scale,d:dot(a,basis.eye)};}
+ function face(points,color,edge=true){
+   const normal=norm(cross(sub(points[1],points[0]),sub(points[2],points[0])));
+   if(dot(normal,basis.eye)<-.001)return;
+   const lit=.51+.49*Math.max(0,dot(normal,norm([-.4,-.7,1])));
+   const projected=points.map(project);faces.push({points:projected,color:shade(color,lit),depth:projected.reduce((v,p)=>v+p.d,0)/projected.length,edge});
+ }
+ function box(x,y,z,w,d,h,color,yaw=0){
+   const c=Math.cos(yaw),s=Math.sin(yaw),vertices=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]].map(([a,b,k])=>[x+c*a*w/2-s*b*d/2,y+s*a*w/2+c*b*d/2,z+k*h/2]);
+   for(const indices of [[4,5,6,7],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7],[3,2,1,0]])face(indices.map(i=>vertices[i]),color);
+ }
+ function cylinder(a,b,r,color,n=10){
+   const axis=norm(sub(b,a)),u=norm(cross(axis,Math.abs(axis[2])>.9?[0,1,0]:[0,0,1])),v=cross(axis,u);
+   const ring=center=>Array.from({length:n},(_,i)=>add(center,add(mul(u,r*Math.cos(i*Math.PI*2/n)),mul(v,r*Math.sin(i*Math.PI*2/n)))));
+   const r1=ring(a),r2=ring(b);face([...r1].reverse(),color);face(r2,color);
+   for(let i=0;i<n;i++){const j=(i+1)%n;face([r1[i],r1[j],r2[j],r2[i]],color);}
+ }
+ function line(points,color,lineWidth=1,dash=[]){
+   ctx.beginPath();for(let i=0;i<points.length;i++){const p=project(points[i]);if(i)ctx.lineTo(p.x,p.y);else ctx.moveTo(p.x,p.y);}ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.setLineDash(dash);ctx.stroke();ctx.setLineDash([]);
+ }
+ function label(p,text,color='#9dafb4',align='center'){const a=project(p);ctx.font='12px "Segoe UI","Microsoft YaHei",sans-serif';ctx.fillStyle=color;ctx.textAlign=align;ctx.fillText(text,a.x,a.y);}
+ function table(o){
+   box(o.x,o.y,.312,o.w,o.d,.055,'#b3b5a9');
+   for(const sx of [-1,1])for(const sy of [-1,1])box(o.x+sx*(o.w/2-.045),o.y+sy*(o.d/2-.045),.147,.035,.035,.294,'#68787b');
+ }
+ function robot(){
+   const b=sim.base,yaw=b.yaw,loc=(x,y,z)=>arr(S.local(b,x,y,z));
+   box(b.x,b.y,.135,.43,.34,.13,'#bfccc9',yaw);
+   box(b.x,b.y,.205,.39,.31,.018,'#465f63',yaw);
+   for(const y of [-.205,.205]){
+     cylinder(loc(.025,y-.028,.079),loc(.025,y+.028,.079),.077,'#27353c',14);
+     cylinder(loc(.025,y-.031,.079),loc(.025,y+.031,.079),.038,'#849b9e',12);
+   }
+   cylinder(loc(-.155,0,.04),loc(-.155,0,.085),.03,'#36484f',10);
+   box(...loc(.218,0,.15),.009,.18,.025,'#83d2bd',yaw);
+   cylinder(loc(0,0,.215),loc(0,0,.34),.053,'#536b71',12);
+   const tray=loc(-.15,0,.213);box(...tray,.16,.22,.018,'#b8a17c',yaw);
+   for(const y of [-.108,.108])box(...loc(-.15,y,.235),.17,.012,.045,'#cdb58d',yaw);
+   const joints=S.fk(b,sim.q).map(arr),heading=b.yaw+sim.q[0],lateral=[-Math.sin(heading),Math.cos(heading),0];
+   cylinder(joints[0],joints[1],.026,'#83d2bd',10);cylinder(joints[1],joints[2],.023,'#83d2bd',10);
+   for(let i=0;i<3;i++)cylinder(add(joints[i],mul(lateral,-.036)),add(joints[i],mul(lateral,.036)),i===0?.052:.037,'#526c72',12);
+   const pitch=sim.q[1]+sim.q[2]+sim.q[3],axis=[Math.cos(heading)*Math.cos(pitch),Math.sin(heading)*Math.cos(pitch),Math.sin(pitch)];
+   const tcp=joints[3],palm=add(tcp,mul(axis,-.05));cylinder(joints[2],palm,.019,'#b5c9c8',10);
+   cylinder(add(palm,mul(lateral,-sim.aperture/2-.01)),add(palm,mul(lateral,sim.aperture/2+.01)),.012,'#5d797d',8);
+   for(const side of [-1,1]){
+     const offset=mul(lateral,side*(sim.aperture/2+.004));
+     cylinder(add(palm,offset),add(add(tcp,mul(axis,.03)),offset),.008,'#c4d5d1',6);
+   }
+   const sensor=add(joints[2],mul(lateral,.067));box(...sensor,.035,.045,.027,'#719ea7',heading);
+ }
+ function draw(){
+   prepare();ctx.clearRect(0,0,width,height);ctx.fillStyle='#142128';ctx.fillRect(0,0,width,height);faces=[];
+   ctx.beginPath();[[-2.35,-1.55,0],[2.35,-1.55,0],[2.35,1.65,0],[-2.35,1.65,0]].map(project).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fillStyle='#1b2a30';ctx.fill();
+   for(let x=-2.25;x<=2.26;x+=.25)line([[x,-1.55,.002],[x,1.65,.002]],'#293b42',.65);
+   for(let y=-1.5;y<=1.65;y+=.25)line([[-2.35,y,.002],[2.35,y,.002]],'#293b42',.65);
+   line([[-2.35,-1.55,.002],[2.35,-1.55,.002],[2.35,1.65,.002],[-2.35,1.65,.002],[-2.35,-1.55,.002]],'#48606a',1);
+   if($('show-path').checked){
+     if(sim.trail.length>1)line(sim.trail.map(p=>[p.x,p.y,.005]),'#3e716c',1.4);
+     if(sim.path.length>1)line(sim.path.map(p=>[p.x,p.y,.012]),'#89d8bd',2,[5,5]);
+   }
+   for(let i=0;i<2;i++)table(S.OBSTACLES[i]);
+   box(0,-.12,.24,.62,.6,.48,'#a99c87');box(0,-.12,.485,.64,.62,.018,'#c6b99f');
+   box(1.25,.86,.345,.70,.33,.010,'#557b73');
+   for(const x of [.90,1.6])box(x,.86,.37,.014,.34,.05,'#83a397');
+   box(1.25,1.02,.37,.71,.014,.05,'#83a397');
+   robot();
+   for(const o of sim.objects)box(o.x,o.y,o.z,.07,.07,.07,o.color,o.mode==='source'?0:sim.base.yaw);
+   faces.sort((a,b)=>a.depth-b.depth);
+   for(const f of faces){ctx.beginPath();for(let i=0;i<f.points.length;i++){const p=f.points[i];if(i)ctx.lineTo(p.x,p.y);else ctx.moveTo(p.x,p.y);}ctx.closePath();ctx.fillStyle=f.color;ctx.fill();if(f.edge){ctx.strokeStyle='#16242c';ctx.lineWidth=.55;ctx.stroke();}}
+   label([-1.25,1.39,.365],'A / 取物台','#c0d4d1');label([1.25,1.41,.365],'B / 投放台','#c0d4d1');label([0,-.12,.57],'障碍物','#bcb6a5');
+   const origin=[-2.05,-1.26,.01];line([origin,add(origin,[.30,0,0])],'#e79487',2);line([origin,add(origin,[0,.30,0])],'#83d2bd',2);label(add(origin,[.36,0,0]),'X','#e79487');label(add(origin,[0,.36,0]),'Y','#83d2bd');
+   ctx.textAlign='left';ctx.font='11px Consolas,monospace';ctx.fillStyle='#91a9ad';ctx.fillText('5 m × 3.2 m  /  GRID 0.25 m',14,height-16);
+   if(camera.follow){ctx.textAlign='right';ctx.fillStyle='#83d2bd';ctx.fillText('FOLLOW',width-15,height-16);}
+ }
+ function resize(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);width=r.width;height=r.height;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);dirty=true;}
+ function updateUI(){
+   const statusNames={IDLE:'空闲',RUNNING:'执行中',PAUSED:'已暂停',SUCCEEDED:'完成',FAILED:'失败',CANCELED:'已停止'},busy=['RUNNING','PAUSED'].includes(sim.status),q=sim.q;
+   $('phase').textContent=sim.phase;$('status').textContent=sim.status+' / '+statusNames[sim.status];$('status').style.color=sim.status==='FAILED'?'var(--error)':'var(--accent)';
+   $('base-pose').textContent=sim.base.x.toFixed(3)+' / '+sim.base.y.toFixed(3);
+   const tcp=sim.tool();$('tool-pose').textContent=[tcp.x,tcp.y,tcp.z].map(v=>v.toFixed(3)).join(' / ');
+   const modes={source:'取物台',held:'夹爪持物',tray:'托盘已固定',delivered:'已投放'};
+   $('payload').textContent=modes[sim.target().mode]+' / '+sim.time.toFixed(1)+' s';
+   $('target').disabled=busy;$('start').disabled=busy||sim.status==='FAILED';$('pause').disabled=!busy;$('pause').textContent=sim.status==='PAUSED'?'继续':'暂停';$('stop').disabled=!busy;
+   const progress=sim.status==='SUCCEEDED'?100:sim.queue.length?Math.round(sim.index/sim.queue.length*100):0;$('progress').setAttribute('aria-valuenow',String(progress));$('progress').firstElementChild.style.width=progress+'%';
+   [...$('steps').children].forEach((li,i)=>{li.className=sim.status==='SUCCEEDED'||i<sim.major?'done':i===sim.major&&busy?'active':'';});
+   for(let i=0;i<4;i++){const degrees=q[i]*180/Math.PI;$('j'+i).value=String(degrees);$('j'+i).disabled=busy||sim.status==='FAILED';$('o'+i).textContent=Math.round(degrees)+'°';}
+   $('jaw').disabled=busy||!!sim.held||sim.status==='FAILED';$('jaw').value=String(sim.aperture*1000);$('jaw-value').textContent=Math.round(sim.aperture*1000)+' mm';$('stow').disabled=busy||!!sim.held||sim.status==='FAILED';
+   document.querySelectorAll('[data-drive]').forEach(b=>b.disabled=busy||!sim.stowed()||!!sim.held||sim.status==='FAILED');
+   const signature=sim.logs.length+'|'+sim.logs[0].message+'|'+sim.logs[0].time;
+   if($('events').dataset.signature!==signature){$('events').dataset.signature=signature;$('events').replaceChildren(...sim.logs.slice(0,5).map(e=>{const li=document.createElement('li'),time=document.createElement('time'),span=document.createElement('span');time.textContent=e.time.toFixed(1)+' s';span.textContent=e.message;li.append(time,span);return li;}));}
+   if(sim.status==='FAILED')$('message').textContent=sim.phase;
+   const source=remoteState?.last_command?.source;
+   $('task-index').textContent=mode==='offline'?'LOCAL / TASK':remoteState?.task_id?'TASK / '+remoteState.task_id.slice(0,8):'TASK / —';
+   $('speed').disabled=false;$('reset').disabled=false;
+   $('backend-mode').textContent=mode==='offline'?'离线运行 · 无外部依赖':connected?'共享仿真 · MCP 可连接'+(source?' · 最近控制：'+source:''):'共享仿真未连接';
+   if(mode!=='offline'&&!connected)for(const el of document.querySelectorAll('#target,#speed,#start,#pause,#stop,#reset,#stow,#jaw,[data-drive],input[id^="j"]'))el.disabled=true;
+ }
+ async function action(fn,name,params){pending++;try{$('message').textContent='';if(mode==='offline')fn();else await command(name,params);}catch(e){$('message').textContent=e.message;}finally{pending--;dirty=true;updateUI();}}
+ $('start').addEventListener('click',()=>{keys.clear();drive=null;action(()=>sim.start($('target').value),'start',{target:$('target').value,speed:Number($('speed').value)});});
+ $('pause').addEventListener('click',()=>action(()=>sim.status==='PAUSED'?sim.resume():sim.pause(),sim.status==='PAUSED'?'resume':'pause'));
+ $('stop').addEventListener('click',()=>action(()=>sim.cancel(),'stop'));
+ $('reset').addEventListener('click',()=>{keys.clear();drive=null;action(()=>{sim.reset();$('target').value='red';},'reset');});
+ $('target').addEventListener('change',()=>action(()=>sim.selected=$('target').value,'select',{target:$('target').value}));
+ $('speed').addEventListener('change',()=>action(()=>{},'speed',{value:Number($('speed').value)}));
+ $('stow').addEventListener('click',()=>action(()=>{if(!sim.held)sim.q=[...S.STOW];},'stow'));
+ for(let i=0;i<4;i++)$('j'+i).addEventListener('input',e=>action(()=>sim.setJoint(i,Number(e.target.value)*Math.PI/180),'joint',{index:i,value:Number(e.target.value)*Math.PI/180}));
+ $('jaw').addEventListener('input',e=>action(()=>{if(!sim.held&&!['RUNNING','PAUSED'].includes(sim.status))sim.aperture=Number(e.target.value)/1000;},'jaw',{value:Number(e.target.value)/1000}));
+ $('show-path').addEventListener('change',()=>dirty=true);
+ $('export').addEventListener('click',()=>{
+   const url=URL.createObjectURL(new Blob([JSON.stringify(mode==='offline'?sim.snapshot():remoteState,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='pickgo-lab-state.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ });
+ document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{
+   const v=button.dataset.view;camera.azimuth=v==='iso'?-1.06:-Math.PI/2;camera.elevation=v==='top'?1.52:v==='side'?.22:.74;
+   document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));dirty=true;
+ }));
+ $('follow').addEventListener('click',()=>{camera.follow=!camera.follow;camera.zoom=camera.follow?2.3:1;$('follow').setAttribute('aria-pressed',String(camera.follow));dirty=true;});
+ canvas.addEventListener('pointerdown',e=>{pointer={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);canvas.focus({preventScroll:true});});
+ canvas.addEventListener('pointermove',e=>{if(pointer){camera.azimuth-=(e.clientX-pointer.x)*.008;camera.elevation=S.clamp(camera.elevation+(e.clientY-pointer.y)*.006,.13,1.55);pointer={x:e.clientX,y:e.clientY};document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed','false'));dirty=true;}});
+ canvas.addEventListener('pointerup',()=>pointer=null);canvas.addEventListener('pointercancel',()=>pointer=null);
+ canvas.addEventListener('wheel',e=>{e.preventDefault();camera.zoom=S.clamp(camera.zoom*Math.exp(-e.deltaY*.001),.65,3.8);dirty=true;},{passive:false});
+ const validKeys=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'];
+ window.addEventListener('keydown',e=>{if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&$('manual').open&&validKeys.includes(e.key)&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();keys.add(e.key);}});
+ window.addEventListener('keyup',e=>keys.delete(e.key));window.addEventListener('blur',()=>{keys.clear();drive=null;pointer=null;});
+ document.addEventListener('visibilitychange',()=>{keys.clear();drive=null;last=performance.now();});
+ $('manual').addEventListener('toggle',()=>{keys.clear();drive=null;});
+ document.querySelectorAll('[data-drive]').forEach(button=>{
+   button.addEventListener('pointerdown',e=>{drive=button.dataset.drive;button.setPointerCapture(e.pointerId);});
+   for(const type of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(type,()=>drive=null);
+ });
+ function animate(now){
+   const dt=Math.min(.06,Math.max(0,(now-last)/1000));last=now;
+   if(!document.hidden){
+     if(mode==='offline'&&sim.status==='RUNNING'){sim.tick(dt*Number($('speed').value));dirty=true;}
+     else if($('manual').open&&sim.status!=='RUNNING'){
+       const forward=keys.has('ArrowUp')||keys.has('w')||drive==='forward',back=keys.has('ArrowDown')||keys.has('s')||drive==='back',left=keys.has('ArrowLeft')||keys.has('a')||drive==='left',right=keys.has('ArrowRight')||keys.has('d')||drive==='right';
+       if(forward||back||left||right){
+         const v=(Number(forward)-Number(back))*.22,w=(Number(left)-Number(right))*1.15;
+         if(mode==='offline'){sim.manualDrive(v,w,dt);dirty=true;}
+         else if(connected&&!pending&&now-lastDrive>100){lastDrive=now;action(()=>{},'drive',{v,w,dt:.08});}
+       }else if(mode==='offline'){sim.base.v=0;sim.base.w=0;sim.base.left=0;sim.base.right=0;}
+     }
+     if(dirty&&now-lastDraw>32){draw();lastDraw=now;dirty=false;}
+     if(now-lastUI>180){updateUI();lastUI=now;}
+   }
+   requestAnimationFrame(animate);
+ }
+ new ResizeObserver(resize).observe(canvas);resize();updateUI();draw();requestAnimationFrame(animate);
+ if(mode!=='offline')pollState();
+ window.robotLab=Object.freeze({sim,camera,snapshot:()=>mode==='offline'?sim.snapshot():remoteState,render:()=>{dirty=true;}});
+})();
+</script>
+</body>
+</html>

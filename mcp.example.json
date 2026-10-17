@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pickgo-lab": {
+      "command": "python",
+      "args": [
+        "-B",
+        "C:/path/to/pickgo-lab/mcp_server.py",
+        "--server-url",
+        "http://127.0.0.1:8767"
+      ]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# Local Python environments and caches
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Local settings and credentials
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+
+# Runtime data and third-party native SDKs are not part of this lightweight repo
+recordings/
+captures/
+downloads/
+*.so
+*.dll
+*.exe
+*.zip

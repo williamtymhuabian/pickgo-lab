@@ -1,0 +1,7 @@
+{
+  "original_path": "demo-capabilities/demo/scripts/utils.py",
+  "repository_path": "legacy/utils.py",
+  "sha256": "0e4887d4825d821e167042850e0e7d5fb1ae08ef71cff9bed4cd8ac434854b3a",
+  "bytes": 27342,
+  "note": "Original file preserved byte-for-byte. Only det_color, det_rect and col_dict_daylight_shelf_1 are loaded via an AST allowlist."
+}

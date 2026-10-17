@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.cmd text eol=crlf
+# Keep provenance hashes stable across Windows and Linux checkouts.
+legacy/utils.py -text -whitespace
