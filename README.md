@@ -6,6 +6,41 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 
 项目仓库：[williamtymhuabian/pickgo-lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
+## 演示与截图
+
+以下素材来自项目实际运行，展示运动学仿真与独立视觉验证；不连接真实机器人，视觉检测尚未接入自动搬运闭环。
+
+### 完整搬运动画
+
+红色方块从取物台出发，经过机械臂抓取、托盘固定、底盘绕障运输与投放，最终完成收臂和结果核验。录制时使用页面的 3× 播放速度，结尾任务状态为 `SUCCEEDED`。
+
+![PickGo Lab 完整搬运动画：抓取、托盘运输、绕障与投放](docs/media/pick-and-deliver.gif)
+
+[查看或下载清晰版 MP4（1280 × 960，约 19 秒）](docs/media/pick-and-deliver.mp4)
+
+<details>
+<summary>展开查看三维场景、托盘运输与视觉检测截图</summary>
+
+### 三维仿真界面
+
+取物台、投放台、障碍物与移动机械臂同场展示，右侧提供任务控制，底部显示实时位置与任务状态。
+
+![三维仿真初始界面与任务控制面板](docs/media/simulation-overview.png)
+
+### 托盘固定与运输准备
+
+红色方块已固定在车载托盘上，机械臂从托盘退出，接着收臂并沿规划路径运输。
+
+![红色方块已固定在车载托盘上的任务中间状态](docs/media/simulation-transport.png)
+
+### 原代码视觉验证
+
+使用合成 RGB-D 测试图调用原 Python 识别函数，显示实际检测框、中心、角度与有效深度。截图中的检测耗时仅代表本次运行。
+
+![原视觉函数对合成 RGB-D 图像的实际识别结果](docs/media/vision-detection.png)
+
+</details>
+
 ## 快速开始
 
 ### 只看运动仿真
