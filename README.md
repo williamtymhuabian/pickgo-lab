@@ -1,6 +1,6 @@
 # PickGo Lab
 
-v0.3.0 · 2026-10-18
+更新于 2026-10-18
 
 PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提供复用原机器人代码的相机识别验证工具。
 
@@ -10,13 +10,23 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 
 ## 演示与截图
 
-### v0.3.0：RGB 输入与送检帧
+### RGB 输入与送检帧
+
+![D435 RGB 实拍：裁剪后的橘子近景，仅验证彩色采集](docs/media/d435-rgb-real.png)
+
+2026-10-18 从 D435 RGB 接口采集，按用户授权仅公开本地裁剪后的近景，未包含背景人员和电脑屏幕；拍摄后已释放相机。此图不表示目标识别或真实深度验收成功。
+
+<img src="docs/media/d435-product.jpg" alt="RealSense D435 官方产品外观图" width="320">
+
+外观图片来自 [RealSense 官方商店](https://store.realsenseai.com/buy-realsense-depth-camera-d435.html)，版权归原权利人所有；这是产品图，不是本机设备实拍。
 
 下面两张是本轮页面联调截图。合成 RGB-D 图用于检查原视觉函数；视频输入使用浏览器合成测试流，画面标有 `SYNTHETIC TEST STREAM / NO HARDWARE`，没有打开真实摄像头，也不能据此判断 D435 的实物识别效果。
 
-![v0.3.0 合成 RGB-D 输入与原算法检测结果](docs/media/v030-synthetic-vision.png)
+![合成 RGB-D 输入与原算法检测结果](docs/media/rgbd-synthetic-vision.png)
 
-![v0.3.0 浏览器合成视频流联调，非真实相机拍摄](docs/media/v030-camera-test-stream.png)
+![浏览器合成视频流联调，非真实相机拍摄](docs/media/camera-test-stream.png)
+
+[摄像头实践与深度开发路线](docs/blog/README.md)：包含 D435、D405、D455 选型参考，以及拟新增的采集、坐标还原、区域测距、标定与回放模块。
 
 ### 离线运动演示
 
@@ -136,7 +146,7 @@ docs/
   camera.md                RGB 摄像头操作、实测记录与排查
   roadmap.md               创新方向与后续实现路线
   github.md                现有仓库更新说明
-  blog/README.md           v0.3.0 项目实践说明
+  blog/README.md           摄像头实践与深度开发路线
 experiments/
   reachability-probe.cjs    固定停车位的可达性探测
 CHANGELOG.md               更新记录

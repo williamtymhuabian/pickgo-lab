@@ -1,26 +1,14 @@
-# PickGo Lab v0.3.0：RGB 摄像头接入与可达性实验
+# PickGo Lab 摄像头实践：从 RGB 识别走向深度感知
 
-上一篇分享了 PickGo Lab 的离线搬运仿真，以及网页、Python 和 MCP 共用场景的方式。这次整理的 v0.3.0，继续完善视觉输入：让浏览器接入内置或 USB 彩色摄像头，把采集到的图像交给本机原识别函数，再把结果画回对应的送检帧。
+这次给 PickGo Lab 增加了 RGB 摄像头输入：浏览器采集彩色画面，本机 Python 调用原颜色与矩形识别函数，再将检测结果绘制到对应的送检帧上。
 
-一个容易忽略的问题是：摄像头预览一直在动，检测结果却晚一些才返回。如果把旧结果直接画在最新预览上，检测框看起来就会跟错目标。这一版先把“哪一帧得到什么结果”处理清楚，同时补上打开超时、取消授权和来源切换后的设备释放。
+真正需要理清的，是从“能看到画面”到“知道物体在哪里”之间的步骤。彩色视频、有效深度、相机坐标和机器人坐标，各自需要独立验证。这篇记录已完成的 RGB 接入，也整理下一步深度开发的具体路线。
 
-项目地址：[PickGo Lab](https://github.com/williamtymhuabian/pickgo-lab)。前一版介绍见 [浏览器、Python 与 MCP 搬运仿真实践](https://williamtymhuabian.github.io/personal-site/#/post/pickgo-lab)。
+项目地址：[PickGo Lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
-## 一、这次新增了什么
+## 一、先跑通 RGB 采集与识别
 
-目前可以分别运行三类功能：
-
-- 离线运动仿真：浏览器打开 index.html，观察抓取、托盘固定、绕障运输和投放。
-- 共享仿真：启动 app.py，让网页、Python 脚本和 MCP 工具查看同一个运动场景。
-- 独立视觉验证：使用合成 RGB-D 图、本地图片或 RGB 摄像头输入，调用原颜色与矩形识别函数。
-
-v0.3.0 的新增重点是第三类：设备选择、实时预览、单帧与连续识别、送检区域中心放大，以及不启动仿真进程的 `--vision-only` 模式。
-
-视觉结果目前用于检查输入输出，尚未用于控制自动搬运；真实深度采集、相机配准和实体机器人后端仍未实现。
-
-## 二、先把本机视觉页面跑起来
-
-准备 Python 3.10 或以上版本，克隆项目并安装视觉依赖：
+准备 Python 3.10 或以上版本，在本机安装依赖并启动视觉模式：
 
 ~~~bash
 git clone https://github.com/williamtymhuabian/pickgo-lab.git
@@ -29,105 +17,127 @@ python -m pip install -r requirements.txt
 python -B app.py --vision-only
 ~~~
 
-用本机 Edge 或 Chrome 打开 [摄像头模式](http://127.0.0.1:8767/vision.html?source=camera)。Windows 也可以双击 `start-camera.cmd`。
+用本机 Edge 或 Chrome 打开 [视觉页面](http://127.0.0.1:8767/vision.html?source=camera)，Windows 也可以双击 `start-camera.cmd`。此模式不需要 Node.js；博客本身只展示文章和图片，识别服务运行在读者自己的电脑上。
 
-这一模式不需要 Node.js，也不创建运动仿真进程。如果端口被占用，可以追加 `--port 8769`，并改用对应端口访问。
+先用合成图确认服务可用，再选择摄像头的 RGB 接口。点击“打开摄像头”后才申请视频权限，不采集麦克风。浏览器采集需要安全上下文，本机 localhost 属于可用于开发的环境。[getUserMedia 官方说明](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
 
-先切回合成 RGB-D 测试图，检查原识别函数是否可用，再切到摄像头输入。这样可以把“算法或服务没有正常工作”和“真实画面不满足识别条件”分开排查。
+当前开发记录中，D435 的 RGB 接口曾以 640×480 打开，并将画面交给原算法；当次结果为“未识别到目标”。它说明采集与送检已经连通，实物颜色识别仍需针对光照、颜色阈值和目标大小继续验证。真实深度尚未接入。
 
-![v0.3.0 合成 RGB-D 测试图与原算法输出：此处的深度来自合成输入，并非真实相机测距](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-lab-v030-synthetic.png)
+这次补拍了一张 D435 RGB 真实画面，原始采集分辨率为 640×480。为避免展示背景人员与电脑屏幕，文章只使用 302×266 的橘子近景裁剪图。拍完即释放相机，没有采集音频。
 
-浏览器采集需要用户授权，并受安全上下文和浏览器设置限制。请使用本机地址运行；静态博客展示截图和文档，不替读者运行本机 Python 服务。[浏览器采集说明](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia)
+![2026-10-18 D435 RGB 实拍：本地裁剪后的橘子近景；仅展示彩色采集，不代表目标识别或深度测距成功](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-d435-rgb-real.png)
 
-## 三、让检测框对应实际送检的那一帧
+## 二、预览在动，检测框要跟着送检帧
 
-视觉页面把两个画面分开：左侧是持续更新的视频预览，右侧是实际交给 Python 的图像和对应检测结果。
-
-一次识别的流程是：
+摄像头预览与实际送检图像分开展示。一次识别经过以下步骤：
 
 ~~~text
-视频流 → 选定区域 → 等比缩放到 320×240 → PNG 送检
-        → 本机 OpenCV → 原 det_color / det_rect
-        → 校验帧标识 → 在该送检帧上绘制结果
+RGB 视频 → 选择区域 → 等比缩放至 320×240 → PNG 送检
+         → 本机 OpenCV → 原 det_color / det_rect
+         → 核对 frame_id → 在对应送检帧上绘制结果
 ~~~
 
-前端会带上 `frame_id`，返回结果必须与本次请求匹配。切换来源、目标颜色或送检区域后，旧结果会失效；没有识别到目标时，中心和角度也会清空。
+连续识别在上一次返回后才采集下一帧，同一页面最多一个识别请求。切换来源、颜色或裁剪区域后，旧结果失效；未识别到目标时清空旧中心与角度。
 
-连续识别采用“上一次返回，再采下一帧”的方式。同一页面最多保留一个识别请求，避免画面持续采集时堆积旧任务。原函数包含 0.4 秒等待，因此预览帧率和识别频率需要分开看。
+![RGB 页面联调截图：输入为浏览器合成测试视频流，未打开真实相机；用于检查预览、送检帧和原算法输出](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-camera-test-stream.png)
 
-下面这张截图来自本轮浏览器联调：输入是明确标注的合成测试视频流，原 Python 函数实际完成了识别。它用来验证采集接口、送检和结果显示，没有打开真实摄像头，也不能代表 D435 的实物识别效果。
+这张图专门验证软件链路，不作为 D435 实拍效果。原函数含 0.4 秒等待，识别频率与预览帧率也应分开看。
 
-![浏览器合成测试视频流联调，非真实相机拍摄：左侧预览，右侧送检帧；RGB 输入没有有效深度](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-lab-v030-camera.png)
+切换来源、关闭设备或离开页面会释放视频轨道。取消连续识别只暂停送检，仍保留预览。[MediaStreamTrack.stop 说明](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/stop)
 
-送检图像保持原始宽高比，必要时留边；中心放大改变的是取样区域。页面中的中心和像素误差都基于 320×240 送检图像，矩形角度是 OpenCV 的原始结果，不能直接当作机器人坐标或机械臂转角。
+## 三、相机选型：先用已有 D435 完成闭环前的验证
 
-## 四、打开与关闭摄像头，也需要验证
+我的第一选择是继续使用已有的 **RealSense D435**。当前最需要补齐的是深度采集、配准和坐标链路，可以先用现有设备验证这些问题，再根据实测距离决定是否换机。
 
-点击“打开摄像头”后才发起视频请求，代码明确设置 `audio: false`。设备选择只枚举视频输入，不申请麦克风。
+![RealSense D435 摄像头外观，图片来自 RealSense 官方商店；这是产品图，不是本机设备实拍](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-d435-product.jpg)
 
-设备名称可辨认时，列表会区分 RGB 与 Depth / IR 接口。RealSense 的设备名称可能同时出现“Depth Camera”和“RGB”，因此当前辅助判断优先检查接口名称后缀。名称只是选择提示，不能凭一个通用 UVC 名称推断设备支持哪些深度能力。
+外观图片来源：[RealSense 官方商店 D435 页面](https://store.realsenseai.com/buy-realsense-depth-camera-d435.html)，图片版权归原权利人所有。
 
-打开过程还有几个需要处理的状态：用户拒绝权限、迟迟不作选择、设备被占用、打开后断开，以及点击取消后视频流才迟到。辅助模块用请求代次区分这些过程，过期的视频流会释放轨道，不重新占用相机。
+按当前项目可能发展的场景，我会考虑三款具体型号。以下是选型建议，工作距离取自官方页面，实际表现还取决于材质、光照、分辨率和安装方式，规格核对日期为 2026-10-18。
 
-切换图像来源、关闭设备或离开页面时，会停止已有轨道并清空 video 的 `srcObject`。取消“连续识别”只暂停送检，仍保留预览；需要释放设备时点击“关闭摄像头”。轨道停止的行为可参考 [MediaStreamTrack.stop](https://developer.mozilla.org/en-US/docs/Web/API/MediaStreamTrack/stop)。
+- **D435：现有设备优先。** 官方理想范围为 0.3—3 m，适合先做桌面物体观察、目标测距和 RGB-D 接口开发。其 RGB 是滚动快门，深度成像器是全局快门，运动场景需要留意彩色与深度的时序差异。[D435 官方规格](https://store.realsenseai.com/buy-realsense-depth-camera-d435.html)
+- **D405：明确需要近距离抓取时考虑。** 官方标准理想范围为 7—50 cm，适合腕部或近距离工位观察。它的彩色信息来自左侧成像器经 ISP 输出，选购前要确认颜色效果、安装距离和遮挡是否满足任务。[D405 官方说明](https://www.realsenseai.com/products/d405-series/)
+- **D455：移动底盘与较远场景时考虑。** 官方理想范围为 0.6—6 m，具备全局快门 RGB 与深度成像、集成 IMU；更适合需要较远环境观察的方向。它能否满足某个抓取距离仍要单独测试。[D455 官方说明](https://www.realsenseai.com/product-family/450-series/)
 
-本轮还修复了一个服务端问题：客户端取消识别请求后，结果写回已断开的连接会触发异常。现在会结束这次响应写入，避免重复发送错误响应；新增回归检查验证服务仍能接受后续请求。
+建议先记录相机到目标的实际距离，再比较有效深度比例和测距误差。购买判断应由这些结果驱动；目前没有必要为了让项目看起来完整就一次购入多款设备。
 
-## 五、保留原算法，也把限制写清楚
+## 四、深度相机开发：先做独立采集，再接回页面
 
-`legacy/utils.py` 继续按原字节保留，测试检查 SHA256。适配层只提取 `det_color`、`det_rect` 和指定 HSV 配置，不导入整个原工程，也不执行其中的 ROS、串口或实体机器人初始化。
+浏览器获得的 RGB 视频不包含可直接读取的毫米深度。RealSense 深度开发应从官方 SDK 与 Python 包 `pyrealsense2` 入手，先在 RealSense Viewer 中检查设备、RGB、深度和 USB 连接，再开发独立采集程序。[官方 SDK 与安装入口](https://github.com/realsenseai/librealsense)
 
-当前方法识别的是满足原 HSV 配置的颜色区域及其矩形轮廓。代码有颜色占比约 4% 的门槛，也有轮廓尺寸检查；光照、反光、相机颜色和目标占画面比例都会影响结果。
+建议由 Python 统一持有 D435 的 RGB 与深度流，网页读取本机服务提供的帧和检测结果。这样可以避免浏览器和 SDK 同时争用同一设备，也方便保存同一组图像、内参和时间戳。
 
-识别不到时，可以先确认目标颜色、改善光照、靠近物体或使用中心放大，再与合成测试图对照。本次保持原函数与阈值不变，先验证输入链路，再按实际场景检查识别效果。
+第一步只做“像素对应的三维表面点”。下面是独立实验的最小示意，尚未接入项目，也未在本轮硬件上运行。示例配置需与设备支持的流模式匹配。
 
-仓库的开发记录保留了此前 D435 RGB 640×480 采集和送检已连通、当次未识别到目标的情况。本轮使用合成图与浏览器测试视频流验证软件行为，没有再次启用真实相机。真实红蓝黄物体的效果仍需单独验收。
+~~~python
+import pyrealsense2 as rs
 
-RGB 输入没有毫米深度；合成 RGB-D 测试图里的 650 mm 只是测试数据。真实深度流、时间同步和 RGB-D 配准，需要后续适配，当前不从灰度或 RGB 图像补造距离。
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+align = rs.align(rs.stream.color)
 
-## 六、一个可复现实验：目标移动 10 cm 后会怎样
-
-除了接入视频，我也运行了仓库里的固定停车位探测。命令是：
-
-~~~bash
-node experiments/reachability-probe.cjs
+started = False
+try:
+    pipeline.start(config)
+    started = True
+    for _ in range(30):
+        frames = pipeline.wait_for_frames(5000)
+    aligned = align.process(frames)
+    depth = aligned.get_depth_frame()
+    color = aligned.get_color_frame()
+    if not depth or not color:
+        raise RuntimeError("没有取得对齐后的 RGB-D 帧")
+    # 这里只测图像中心，不代表已经检测到了目标。
+    u, v = color.get_width() // 2, color.get_height() // 2
+    z_m = depth.get_distance(u, v)
+    if z_m <= 0:
+        raise RuntimeError("该像素无有效深度，请换位置或检查场景")
+    intrinsics = depth.profile.as_video_stream_profile().intrinsics
+    point_m = rs.rs2_deproject_pixel_to_point(intrinsics, [u, v], z_m)
+    print("相机坐标中的表面点 / m:", point_m)
+finally:
+    if started:
+        pipeline.stop()
 ~~~
 
-实验每次创建全新的运动仿真实例，只改变红色方块的 y 坐标，固定时间步为 0.04 秒，其他场景与动作程序保持不变。结果为：
+这里用 `rs.align(rs.stream.color)` 把深度对齐到彩色图像，再读取匹配的内参。官方提供了 [深度对齐 Python 示例](https://github.com/realsenseai/librealsense/blob/master/wrappers/python/examples/align-depth2color.py) 和 [align 接口说明](https://realsenseai.github.io/librealsense/python_docs/_generated/pyrealsense2.align.html)。
 
-~~~text
-目标 y=0.76 m  → SUCCEEDED，仿真时间 48.68 s
-目标 y=0.86 m  → FAILED / OUT_OF_REACH，仿真时间 8.16 s
-目标 y=0.96 m  → FAILED / OUT_OF_REACH，仿真时间 8.16 s
-目标 y=1.06 m  → FAILED / OUT_OF_REACH，仿真时间 8.16 s
-目标 y=1.16 m  → FAILED / OUT_OF_REACH，仿真时间 8.16 s
-~~~
+`get_distance` 返回米制深度；读取原始 Z16 数据时则必须使用实际 `depth_scale` 转换，不能一律假定原始值就是毫米。深度伪彩图只用于显示，测距需要原始深度值。[depth_frame 接口说明](https://realsenseai.github.io/librealsense/python_docs/_generated/pyrealsense2.depth_frame.html)
 
-这些是五个确定输入的结果，不是随机成功率，时间也不是实体机器人耗时。当前程序使用固定取物停车位，目标移动后，预抓取位置可能超出机械臂工作空间。
+对齐解决空间像素对应关系，仍需记录并检查 RGB、深度时间戳。相机坐标的轴向为右、下、前，三维点单位为米。它到机器人基座的转换还需要外参；固定相机与腕部相机的标定流程也不同。[官方投影与坐标说明](https://dev.realsenseai.com/docs/projection-in-realsense-sdk-2-0/)
 
-下一步很适合增加“执行前可达性检查”和“抓取停车位选择”：先检查底盘通路、停车间隙和各阶段逆解，再执行任务。只检验最终抓取点还不够，预抓取、抬升、托盘放置等阶段都要满足约束。这些属于后续计划，当前版本尚未实现。
+## 五、接下来具体写哪些代码
 
-## 七、这次发布验证了哪些内容
+我会按下面的依赖顺序推进。这些文件名是拟新增模块，当前尚未实现；每一步先验收，再进入下一步。
 
-本轮通过 36 项测试：运动核心 9 项、摄像头辅助模块 8 项、视觉接口 10 项、MCP 与共享状态集成 9 项。
+1. **`sensors/realsense_source.py`：统一采集接口。** 打开指定设备，输出 RGB、原始深度、内参、深度比例、帧号与各流时间戳；断连和超时明确报错，退出时释放设备。验收标准是能保存一组可读取、元数据完整的 RGB-D 样本。
+2. **`vision/pixel_mapping.py`：还原送检坐标。** 记录当前 320×240 送检过程中的裁剪区域、缩放和留边，把检测坐标逆变换回原始彩色像素。黑边内的点应拒绝；不能直接拿送检中心去索引原始深度。
+3. **`vision/depth_target.py`：目标区域测距。** 在对齐后的目标内部筛选有效深度，避开边界混入的背景和深度空洞，输出有效比例、离散程度与失败原因。选定有效表面像素后用它自身的深度反投影，保留采样位置；暂不把一个表面点宣称为完整物体位姿。
+4. **`calibration/camera_to_base.py`：坐标转换。** 明确相机安装方式，保存有版本的外参与单位，在已知测量点上检查转换误差。标定缺失、过期或误差不满足任务要求时，只显示观测，不输出可执行抓取目标。
+5. **`experiments/rgbd_replay.py`：先回放，再接控制。** 保存 RGB、Z16、元数据和算法输出，使没有相机时也能复现同一组检测。先向仿真提供带时间戳的估计位置，确认过期帧、无效深度和不可达点会被拒绝，再考虑实体机械臂。
 
-~~~bash
-node tests/simulation.test.cjs
-node tests/camera.test.cjs
-python -B tests/test_vision.py
-python -B tests/test_mcp.py
-~~~
+原 `legacy/utils.py` 与颜色阈值继续保留，新的采集与坐标处理放在适配层。现在的 `det_rect` 角度只是二维轮廓角度；真正抓取还要结合目标几何、表面法线或姿态估计、夹爪约束与运动规划。
 
-浏览器联调另外检查了送检帧标识、连续识别不积压、RGB 不补造深度、来源切换后轨道释放，以及 320px 和 390px 手机布局。上述测试使用合成输入和本机临时服务，不代表真实设备或复杂环境下的效果。
+第一个可以独立完成的小目标是：**在网页点击物体，显示对应三维表面点，并保存这次 RGB-D 观测。** 先用已知距离的静止物体测误差，再比较不同距离、光照和材质下的有效比例与抖动。
 
-离线运动演示继续保留，数学核心没有因这次摄像头接入而改变：
+## 六、可以继续探索的三个小方向
 
-![既有运动仿真演示：抓取、托盘固定、绕障运输与投放；视觉结果尚未接入控制闭环](https://raw.githubusercontent.com/williamtymhuabian/pickgo-lab/main/docs/media/pick-and-deliver.gif)
+**让系统解释为什么看不准。** 当目标颜色占比不足、深度空洞多、帧过期或坐标标定缺失时，页面显示具体原因，并保留失败样本。它既是调试工具，也能成为持续更新的实验内容。
 
-v0.3.0 适合用来学习视频输入、帧结果一致性、设备生命周期，以及固定运动流程的局限。后续如果继续做视觉闭环，我希望每一步都有可复现输入、明确坐标和可以解释的失败原因。
+**让机器人为观察选择位置。** 固定视角看不清时，先在仿真中比较几个观察位，尝试改善可见面积和深度有效比例，再决定是否靠近或改变视角。可以从规则策略开始，记录移动代价与观测收益。
 
-源码、运行说明与更新记录：[PickGo Lab](https://github.com/williamtymhuabian/pickgo-lab)。
+**给语言指令加上几何核验。** 例如“找到红色盒子，靠近后观察”。语言模块负责解析目标与步骤，视觉模块返回观测，几何模块核对距离和可达性，再由执行器决定动作。这可以作为向 VLN／移动操作延伸的小实验；目前属于项目设想，尚无研究新颖性或效果结论。
+
+## 七、已经验证的范围
+
+现有项目的 36 项测试已通过，覆盖运动核心、摄像头辅助、视觉接口与 MCP 集成。浏览器联调使用合成图与合成视频流，检查了帧标识、连续识别不积压、设备释放与移动端布局；这些结果不能代替真实深度验收。
+
+本次另从 D435 RGB 补拍一张实图，确认彩色采集可用；没有对橘子补做识别测试，也没有获取真实深度。下一步最有价值的进展，是把一张真实 RGB-D 观测变成有单位、坐标、时间戳和误差记录的三维估计，再让后续任务使用这个估计。
+
+源码与运行说明：[PickGo Lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
 ---
-原文：https://williamtymhuabian.github.io/personal-site/#/post/pickgo-lab-v030
+原文：https://williamtymhuabian.github.io/personal-site/#/post/pickgo-lab-camera
 作者：Williamtym
