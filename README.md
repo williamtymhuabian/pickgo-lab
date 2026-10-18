@@ -16,9 +16,9 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 
 2026-10-18 从 D435 RGB 接口采集，按用户授权仅公开本地裁剪后的近景，未包含背景人员和电脑屏幕；拍摄后已释放相机。此图不表示目标识别或真实深度验收成功。
 
-<img src="docs/media/d435-product.jpg" alt="RealSense D435 官方产品外观图" width="320">
+<img src="docs/media/d435-device.jpg" alt="本机 RealSense D435 摄像头与三脚架实拍" width="320">
 
-外观图片来自 [RealSense 官方商店](https://store.realsenseai.com/buy-realsense-depth-camera-d435.html)，版权归原权利人所有；这是产品图，不是本机设备实拍。
+上图为本次使用的 D435 摄像头与三脚架实拍，展示实际安装状态。
 
 下面两张是本轮页面联调截图。合成 RGB-D 图用于检查原视觉函数；视频输入使用浏览器合成测试流，画面标有 `SYNTHETIC TEST STREAM / NO HARDWARE`，没有打开真实摄像头，也不能据此判断 D435 的实物识别效果。
 

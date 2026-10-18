@@ -49,9 +49,9 @@ RGB 视频 → 选择区域 → 等比缩放至 320×240 → PNG 送检
 
 我的第一选择是继续使用已有的 **RealSense D435**。当前最需要补齐的是深度采集、配准和坐标链路，可以先用现有设备验证这些问题，再根据实测距离决定是否换机。
 
-![RealSense D435 摄像头外观，图片来自 RealSense 官方商店；这是产品图，不是本机设备实拍](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-d435-product.jpg)
+![本机 RealSense D435 摄像头与三脚架的实拍照片](https://williamtymhuabian.github.io/personal-site/assets/projects/pickgo-d435-device.jpg)
 
-外观图片来源：[RealSense 官方商店 D435 页面](https://store.realsenseai.com/buy-realsense-depth-camera-d435.html)，图片版权归原权利人所有。
+上图是本次使用的摄像头与三脚架实拍，展示设备的实际安装状态。
 
 按当前项目可能发展的场景，我会考虑三款具体型号。以下是选型建议，工作距离取自官方页面，实际表现还取决于材质、光照、分辨率和安装方式，规格核对日期为 2026-10-18。
 
