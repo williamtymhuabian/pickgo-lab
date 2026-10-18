@@ -12,6 +12,10 @@
 
 共享模式的时间在服务端推进，网页切到后台或关闭后任务仍继续；连接中断时网页禁用控制并显示提示，恢复后同步服务端状态。关闭 `app.py` 会结束该仿真进程。只关闭 MCP attach 客户端不会自动停止任务；需要停止时先调用 `stop_task`。
 
+## RGB 摄像头识别
+
+使用 `python -B app.py --vision-only` 或 Windows 的 `start-camera.cmd`，打开 <http://127.0.0.1:8767/vision.html?source=camera>。此入口不需要 Node.js，支持本机摄像头单帧和连续识别。详细操作见 [摄像头说明](camera.md)。当前不读取深度传感器，也不执行实体机器人动作。
+
 ## 新增：原代码视觉验证
 
 在项目根目录运行：

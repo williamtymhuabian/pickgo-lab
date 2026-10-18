@@ -13,7 +13,7 @@ import utils
 from Constants import APP
 
 ROOT = Path(__file__).resolve().parent
-STATIC = {"/": "index.html", "/index.html": "index.html", "/vision.html": "vision.html"}
+STATIC = {"/": "index.html", "/index.html": "index.html", "/vision.html": "vision.html", "/camera.js": "camera.js"}
 
 
 def reject_constant(value):
@@ -68,13 +68,17 @@ def handler_type(detector, context=None):
     class Handler(BaseHTTPRequestHandler):
         def send_json(self, value, status=200):
             data = json.dumps(value, ensure_ascii=False, allow_nan=False).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.end_headers()
-            self.wfile.write(data)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.wfile.write(data)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                # A canceled browser request is already gone; do not send a second response.
+                return
 
         def same_origin(self):
             expected = {f"127.0.0.1:{self.server.server_port}", f"localhost:{self.server.server_port}"}
@@ -100,7 +104,7 @@ def handler_type(detector, context=None):
                 return self.send_json({"error": "Not found"}, 404)
             data = (ROOT/STATIC[route]).read_bytes()
             self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Type", "text/javascript; charset=utf-8" if route.endswith(".js") else "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -149,6 +153,7 @@ def handler_type(detector, context=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=APP["port"])
+    parser.add_argument("--vision-only", action="store_true", help="camera / vision only; no Node.js or simulation process")
     args = parser.parse_args()
     detector = None
     try:
@@ -156,16 +161,19 @@ def main():
         detector = LegacyColorDetector()
     except ImportError:
         print("视觉依赖未安装，运动仿真和 MCP 可以正常使用。", flush=True)
-    context = utils.all_init(detector=detector)
+    context = None if args.vision_only else utils.all_init(detector=detector)
     try:
         with ThreadingHTTPServer((APP["host"], args.port), handler_type(detector, context)) as server:
-            print(f"PickGo Lab: http://127.0.0.1:{args.port}/", flush=True)
-            print(f"MCP: python -B mcp_server.py --server-url http://127.0.0.1:{args.port}", flush=True)
+            page = "/vision.html?source=camera" if args.vision_only else "/"
+            print(f"PickGo Lab: http://127.0.0.1:{args.port}{page}", flush=True)
+            if context:
+                print(f"MCP: python -B mcp_server.py --server-url http://127.0.0.1:{args.port}", flush=True)
             server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        utils.close(context)
+        if context:
+            utils.close(context)
 
 
 if __name__ == "__main__":

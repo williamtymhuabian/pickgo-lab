@@ -3,6 +3,7 @@ import hashlib
 import http.client
 import json
 import re
+import socket
 import sys
 import threading
 import unittest
@@ -52,6 +53,53 @@ class VisionTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(SOURCE.read_bytes()).hexdigest(), expected)
         self.assertEqual(self.detector.source_hash, expected)
         self.assertEqual(set(self.detector.lines), {"det_color", "det_rect", "col_dict_daylight_shelf_1"})
+
+    def test_canceled_detection_does_not_break_the_local_server(self):
+        entered, release = threading.Event(), threading.Event()
+        errors = []
+        detector = self.detector
+
+        class DelayedDetector:
+            def detect(self, *args):
+                entered.set()
+                if not release.wait(5):
+                    raise RuntimeError("test request was not released")
+                return detector.detect(*args)
+
+            def provenance(self):
+                return detector.provenance()
+
+        class RecordingServer(ThreadingHTTPServer):
+            def handle_error(self, request, client_address):
+                errors.append(sys.exc_info()[1])
+
+        server = RecordingServer(("127.0.0.1", 0), handler_type(DelayedDetector()))
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        client = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        try:
+            image, _ = fixture()
+            client.request("POST", "/api/vision/detect", json.dumps(packet(image)),
+                           {"Content-Type": "application/json"})
+            self.assertTrue(entered.wait(3))
+            client.sock.shutdown(socket.SHUT_RDWR)
+            client.close()
+            release.set()
+            followup = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+            try:
+                followup.request("GET", "/api/vision/status")
+                response = followup.getresponse()
+                self.assertEqual(response.status, 200)
+                self.assertTrue(json.loads(response.read())["ready"])
+            finally:
+                followup.close()
+        finally:
+            release.set()
+            client.close()
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=5)
+        self.assertEqual(errors, [])
 
     def test_colors_centers_angles_and_depth(self):
         for color, center, rotation in [("red", (190, 108), 18), ("blue", (112, 144), 52), ("yellow", (220, 102), -24)]:

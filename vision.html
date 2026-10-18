@@ -13,8 +13,9 @@
 <div class="layout">
 <section aria-label="相机画面与检测结果">
   <div class="camera-grid">
-    <div class="camera"><div class="camera-head"><h2>RGB 相机</h2><span>320 × 240 / RGB</span></div><div class="image"><canvas id="rgb" width="320" height="240" aria-label="原始相机图像"></canvas><canvas id="overlay" width="320" height="240" aria-label="原代码输出的检测框与中心点"></canvas></div><div class="camera-foot" id="frame-label">合成标定测试图 · 不是真实相机</div></div>
-    <div class="camera"><div class="camera-head"><h2>深度相机</h2><span>uint16 / mm</span></div><div class="image"><canvas id="depth" width="320" height="240" aria-label="合成深度图；上传 RGB 图片时不生成假深度"></canvas></div><div class="camera-foot" id="depth-label">亮：650 mm · 暗：1000 mm</div></div>
+    <div class="camera" id="live-camera" hidden><div class="camera-head"><h2>摄像头实时预览</h2><span id="live-size">未打开</span></div><div class="image"><video id="camera-video" muted playsinline aria-label="本机摄像头实时预览"></video></div><div class="camera-foot" id="camera-status" role="status">摄像头未打开</div></div>
+    <div class="camera"><div class="camera-head"><h2 id="rgb-title">RGB 相机</h2><span>320 × 240 / RGB</span></div><div class="image"><canvas id="rgb" width="320" height="240" aria-label="送检图像，检测结果对应这一帧"></canvas><canvas id="overlay" width="320" height="240" aria-label="原代码输出的检测框与中心点"></canvas></div><div class="camera-foot" id="frame-label">合成标定测试图 · 不是真实相机</div></div>
+    <div class="camera" id="depth-camera"><div class="camera-head"><h2>深度相机</h2><span>uint16 / mm</span></div><div class="image"><canvas id="depth" width="320" height="240" aria-label="合成深度图；普通摄像头和 RGB 图片没有深度"></canvas></div><div class="camera-foot" id="depth-label">亮：650 mm · 暗：1000 mm</div></div>
   </div>
   <div class="result"><span id="verdict" class="verdict" role="status" aria-live="polite">等待识别</span><span id="latency" class="note">原 Python 函数包含 0.4 秒等待</span></div>
   <div class="metrics">
@@ -24,7 +25,15 @@
   <div class="source"><h2>这次调用了哪些原代码</h2><div class="code" id="source-path">legacy/utils.py</div><dl class="provenance"><dt>实际函数</dt><dd id="functions">det_color → det_rect</dd><dt>原 HSV 配置</dt><dd class="code" id="profile">col_dict_daylight_shelf_1</dd><dt>原文件 SHA256</dt><dd class="code" id="source-hash">连接后显示</dd><dt>处理链路</dt><dd>PNG 像素 → OpenCV BGR → 原 HSV 检测 → 原轮廓/最小矩形 → 检测框、中心、角度</dd></dl><p>识别接口只接收图像、可选深度帧及帧元数据，不接收方块的真实中心、旋转角或世界坐标。检测框来自 Python 的像素处理结果。</p><p>角度是 OpenCV 最小矩形的原始角度，不能直接当作机械臂转角。深度使用新增适配层的有效 5×5 邻域中值；原相机深度回调未直接复用。</p></div>
 </section>
 <aside class="aside" aria-label="相机测试控制">
-  <h2>相机输入</h2><label class="label" for="input-mode">图像来源</label><select id="input-mode"><option value="synthetic">合成 RGB-D 测试图</option><option value="upload">本地 RGB 图片</option></select>
+  <h2>相机输入</h2><label class="label" for="input-mode">图像来源</label><select id="input-mode"><option value="synthetic">合成 RGB-D 测试图</option><option value="camera">本机摄像头 / USB</option><option value="upload">本地 RGB 图片</option></select>
+  <div id="camera-controls" hidden>
+    <label class="label" for="camera-device">选择摄像头</label><select id="camera-device"><option value="">系统默认摄像头</option></select><p class="note">RealSense D435 请选择名称以 RGB 结尾的接口；也可选电脑内置的 USB2.0 HD UVC WebCam。当前只做彩色识别，不读取深度。</p>
+    <div class="camera-actions"><button type="button" id="camera-open">打开摄像头</button><button type="button" id="camera-stop" disabled>关闭摄像头</button></div>
+    <button type="button" id="camera-refresh" class="secondary">刷新设备列表</button>
+    <label class="label" for="camera-zoom">送检区域</label><select id="camera-zoom"><option value="1">完整画面</option><option value="1.5">中心放大 1.5×</option><option value="2">中心放大 2×</option><option value="3">中心放大 3×</option></select>
+    <label class="check"><input type="checkbox" id="camera-continuous">连续识别（逐帧处理）</label>
+    <p class="note">点“打开”后才申请摄像头权限，仅使用视频。左侧实时预览，识别框显示在送检帧上。停止连续识别后，摄像头仍可预览；点“关闭摄像头”释放设备。</p>
+  </div>
   <label class="label" for="color">识别目标颜色</label><select id="color"><option value="red">红色</option><option value="blue">蓝色</option><option value="yellow">黄色</option><option value="auto">原配置全部颜色 / 按顺序匹配</option></select>
   <div id="synthetic-controls">
     <label class="control-label" for="x"><span>水平偏移</span><output id="x-value">0 px</output></label><input id="x" type="range" min="-85" max="85" value="0" step="1">
@@ -34,26 +43,40 @@
     <label class="check"><input type="checkbox" id="visible" checked>显示测试物体</label><label class="check"><input type="checkbox" id="valid-depth" checked>提供有效深度帧</label>
   </div>
   <div id="upload-controls" hidden><label class="label" for="photo">选择本地图片（最多 5 MB）</label><input type="file" id="photo" accept="image/png,image/jpeg,image/webp"><p class="note">等比缩放至 320 × 240。只有 RGB 时显示“无深度”，不会补造深度数据。</p></div>
-  <hr class="separator"><label class="check"><input type="checkbox" id="auto" checked>输入变化后自动识别</label><button class="primary" id="detect" disabled>调用原代码识别</button><button class="secondary" id="reset">恢复默认测试图</button>
+  <hr class="separator"><label class="check" id="auto-control"><input type="checkbox" id="auto" checked>输入变化后自动识别</label><button class="primary" id="detect" disabled>调用原代码识别</button><button class="secondary" id="reset">恢复默认测试图</button>
   <div id="error" class="error" role="alert"></div>
   <div class="launch" id="launch" hidden>原代码识别需要本机 Python 服务。在项目根目录运行：<code>python -B app.py</code><p>然后打开 <a href="http://127.0.0.1:8767/vision.html">127.0.0.1:8767/vision.html</a></p></div>
-  <p class="note">只加载原函数和 HSV 配置；不导入 ROS，不连接机械臂、底盘或实物相机。识别图像仅在本机内存中处理。</p>
+  <p class="note">当前识别红、蓝、黄色块和矩形轮廓。沿用原 HSV 配置，目标颜色需占画面约 4% 以上且轮廓足够大；识别不到可移近目标、使用中心放大并改善光照。不是通用物体识别。</p>
+  <p class="note">只加载原函数和 HSV 配置；不导入 ROS，不连接机械臂或底盘。摄像头画面仅发到本机识别服务，不录制、不上传外网；普通 RGB 摄像头不提供距离。</p>
 </aside>
 </div>
 <footer class="foot"><span>新增：图像与深度适配器 · 复用：原颜色/矩形识别代码</span><span>本阶段验证视觉输出；自动搬运暂未使用这些检测结果</span></footer>
 </main>
+<style>.image video{display:block;width:100%;height:100%;object-fit:contain}.camera-actions{display:flex;gap:8px;margin:12px 0}.camera-actions button{flex:1;padding:8px 5px}</style>
+<script src="camera.js"></script>
 <script>
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id),W=320,H=240,rgb=$('rgb'),ctx=rgb.getContext('2d',{willReadFrequently:true}),overlay=$('overlay').getContext('2d'),dc=$('depth').getContext('2d');
 const mask=document.createElement('canvas');mask.width=W;mask.height=H;const mc=mask.getContext('2d',{willReadFrequently:true});
 const colors={red:'#c84333',blue:'#3675d2',yellow:'#d2b336'},names={red:'红色',blue:'蓝色',yellow:'黄色'};
-let depth=null,ready=false,revision=0,sequence=0,controller=null,timer=null,photo=null;
+const C=PickGoCamera,camera=C.create_camera($('camera-video'),navigator.mediaDevices);
+let depth=null,ready=false,revision=0,sequence=0,controller=null,timer=null,photo=null,inFlight=false,cameraFrame=null;
+const cameraMode=()=>$('input-mode').value==='camera';
+function canDetect(){return ready&&!inFlight&&(!cameraMode()||!!camera.stream);}
+function updateButtons(){
+  $('detect').disabled=!canDetect();$('camera-open').disabled=!!camera.stream||camera.opening;
+  $('camera-stop').disabled=!camera.stream&&!camera.opening;$('camera-device').disabled=!!camera.stream||camera.opening;
+}
 function crosshair(){overlay.clearRect(0,0,W,H);overlay.strokeStyle='#789095';overlay.lineWidth=1;overlay.beginPath();overlay.moveTo(151,120);overlay.lineTo(169,120);overlay.moveTo(160,111);overlay.lineTo(160,129);overlay.stroke();}
 function blankResults(){for(const id of ['center','offset','angle-value','depth-value','color-value','frame-value'])$(id).textContent='—';$('verdict').textContent=ready?'输入已更新，等待识别':'等待识别';$('verdict').style.color='var(--muted)';crosshair();}
 function drawInput(){
   ctx.fillStyle='#383838';ctx.fillRect(0,0,W,H);mc.clearRect(0,0,W,H);dc.fillStyle='#303840';dc.fillRect(0,0,W,H);
-  if($('input-mode').value==='upload'){
+  if(cameraMode()){
+    depth=null;cameraFrame=null;
+    $('frame-label').textContent='等待拍摄送检帧 · 检测坐标基于 320 × 240 图像';
+    $('depth-label').textContent='普通 RGB 摄像头没有深度帧';
+  }else if($('input-mode').value==='upload'){
     depth=null;if(photo){const s=Math.min(W/photo.width,H/photo.height);ctx.drawImage(photo,(W-photo.width*s)/2,(H-photo.height*s)/2,photo.width*s,photo.height*s);}
     dc.fillStyle='#b6c6c8';dc.font='14px "Segoe UI","Microsoft YaHei",sans-serif';dc.textAlign='center';dc.fillText('无深度帧',W/2,H/2);
     $('frame-label').textContent=photo?'本地 RGB 图片 · 不上传到外网':'请选择本地 RGB 图片';$('depth-label').textContent='未提供对应深度，不进行深度估计';
@@ -68,13 +91,19 @@ function drawInput(){
 }
 function toBase64(bytes){let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(binary);}
 function capture(){
-  const packet={frame_id:'camera-test-'+revision+'-'+(++sequence),timestamp_ms:Date.now(),width:W,height:H,encoding:'png-rgb',image:rgb.toDataURL('image/png'),target:$('color').value,depth_unit:'mm',depth_le_u16:null};
+  if(cameraMode()){
+    cameraFrame=C.capture_camera(camera,ctx,W,H,Number($('camera-zoom').value));depth=null;
+    $('live-size').textContent=cameraFrame.source_size.join(' × ')+' / RGB';
+    $('frame-label').textContent='摄像头送检帧 · '+new Date(cameraFrame.captured_at_ms).toLocaleTimeString()+' · '+$('camera-zoom').selectedOptions[0].textContent;
+  }
+  const packet={frame_id:(cameraMode()?'webcam-':'camera-test-')+revision+'-'+(++sequence),timestamp_ms:Date.now(),width:W,height:H,encoding:'png-rgb',image:rgb.toDataURL('image/png'),target:$('color').value,depth_unit:'mm',depth_le_u16:null};
   if(depth){const bytes=new Uint8Array(depth.length*2),view=new DataView(bytes.buffer);for(let i=0;i<depth.length;i++)view.setUint16(i*2,depth[i],true);packet.depth_le_u16=toBase64(bytes);}
   return packet;
 }
 function showResult(result){
+  for(const id of ['center','offset','angle-value','depth-value','color-value'])$(id).textContent='—';
   crosshair();$('frame-value').textContent=result.frame_id;$('latency').textContent='原代码处理 '+result.elapsed_ms+' ms（含 0.4 秒等待）';
-  if(!result.found){$('verdict').textContent='未识别到目标';$('verdict').style.color='var(--warn)';return;}
+  if(!result.found){$('verdict').textContent='未识别到目标';$('verdict').style.color='var(--warn)';$('depth-value').textContent=cameraMode()?'无深度帧':'—';return;}
   $('verdict').textContent='原代码识别成功';$('verdict').style.color='var(--accent)';
   $('center').textContent=result.center.map(v=>v.toFixed(1)).join(' / ');$('offset').textContent=result.pixel_error.map(v=>(v>=0?'+':'')+v.toFixed(1)).join(' / ');$('angle-value').textContent=result.angle_deg.toFixed(2);
   $('depth-value').textContent=result.depth?result.depth.mm.toFixed(0):'无有效深度';$('color-value').textContent=names[result.color]||result.color;
@@ -82,42 +111,93 @@ function showResult(result){
   const [cx,cy]=result.center;overlay.beginPath();overlay.arc(cx,cy,3,0,Math.PI*2);overlay.fillStyle='#e6fff8';overlay.fill();overlay.strokeStyle='#e6fff8';overlay.beginPath();overlay.moveTo(cx-7,cy);overlay.lineTo(cx+7,cy);overlay.moveTo(cx,cy-7);overlay.lineTo(cx,cy+7);overlay.stroke();
 }
 async function detect(){
-  clearTimeout(timer);if(!ready)return;
+  clearTimeout(timer);if(!ready||inFlight)return;
+  if(cameraMode()&&!camera.stream){$('error').textContent='请先打开摄像头。';return;}
   if($('input-mode').value==='upload'&&!photo){$('error').textContent='请先选择一张本地图片。';return;}
-  const version=revision,packet=capture();if(controller)controller.abort();controller=new AbortController();
+  const version=revision;let packet;
+  try{packet=capture();}catch(error){$('error').textContent=C.error_message(error);return;}
+  inFlight=true;blankResults();controller=new AbortController();const requestController=controller;
   $('detect').disabled=true;$('error').textContent='';$('verdict').textContent='正在调用原 Python 代码…';$('verdict').style.color='var(--accent)';
-  const timeout=setTimeout(()=>controller.abort(),8000);
+  const timeout=setTimeout(()=>requestController.abort(),8000);
   try{
-    const response=await fetch('/api/vision/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(packet),signal:controller.signal});
+    const response=await fetch('/api/vision/detect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(packet),signal:requestController.signal});
     const result=await response.json();if(version!==revision)return;if(!response.ok)throw Error(result.error||'检测请求失败');if(result.frame_id!==packet.frame_id)throw Error('返回帧不匹配，结果已丢弃');showResult(result);
-  }catch(error){if(version===revision){$('verdict').textContent='识别未完成';$('error').textContent=error.name==='AbortError'?'请求超时或已取消，可重新识别。':error.message;}}
-  finally{clearTimeout(timeout);if(version===revision)$('detect').disabled=!ready;}
+  }catch(error){if(version===revision){$('camera-continuous').checked=false;$('verdict').textContent='识别未完成';$('error').textContent=error.name==='AbortError'?'请求超时或已取消，可重新识别。':error.message;}}
+  finally{
+    clearTimeout(timeout);if(controller===requestController)controller=null;inFlight=false;updateButtons();
+    if(cameraMode()&&camera.stream&&$('camera-continuous').checked&&!document.hidden)timer=setTimeout(detect,250);
+    else if(version!==revision&&!cameraMode()&&ready&&$('auto').checked)timer=setTimeout(detect,450);
+  }
 }
 function changed(){
-  revision++;if(controller)controller.abort();clearTimeout(timer);drawInput();blankResults();$('error').textContent='';$('detect').disabled=!ready;
-  if(ready&&$('auto').checked&&($('input-mode').value==='synthetic'||photo))timer=setTimeout(detect,450);
+  revision++;clearTimeout(timer);drawInput();blankResults();$('error').textContent='';updateButtons();
+  if(!inFlight&&ready&&((cameraMode()&&camera.stream&&$('camera-continuous').checked)||(!cameraMode()&&$('auto').checked&&($('input-mode').value==='synthetic'||photo))))timer=setTimeout(detect,450);
 }
 async function connect(){
   if(!['http:','https:'].includes(location.protocol)){unavailable();return;}
   try{
     const response=await fetch('/api/vision/status',{signal:AbortSignal.timeout(4000)});if(!response.ok)throw Error('Not available');const result=await response.json();if(!result.ready)throw Error('Not ready');
-    ready=true;const p=result.provenance;$('connection').textContent='本机 OpenCV 已连接';$('connection').style.color='var(--accent)';$('source-hash').textContent=p.source_sha256;$('functions').textContent=p.functions.map(name=>name+'（原文件第 '+p.lines[name]+' 行）').join(' → ');$('profile').textContent=p.hsv_profile;$('launch').hidden=true;$('detect').disabled=false;
-    if($('auto').checked)detect();
+    ready=true;const p=result.provenance;$('connection').textContent='本机 OpenCV 已连接';$('connection').style.color='var(--accent)';$('source-hash').textContent=p.source_sha256;$('functions').textContent=p.functions.map(name=>name+'（原文件第 '+p.lines[name]+' 行）').join(' → ');$('profile').textContent=p.hsv_profile;$('launch').hidden=true;updateButtons();
+    if(!cameraMode()&&$('auto').checked)detect();
   }catch(error){unavailable();}
 }
 function unavailable(){ready=false;$('connection').textContent='原代码服务未连接';$('connection').style.color='var(--warn)';$('launch').hidden=false;$('detect').disabled=true;$('verdict').textContent='可预览输入；识别需要本机服务';$('verdict').style.color='var(--muted)';}
 for(const id of ['x','y','rotation'])$(id).addEventListener('input',changed);
 for(const id of ['color','object-color','visible','valid-depth'])$(id).addEventListener('change',changed);
-$('input-mode').addEventListener('change',()=>{$('synthetic-controls').hidden=$('input-mode').value!=='synthetic';$('upload-controls').hidden=$('input-mode').value!=='upload';changed();});
+$('input-mode').addEventListener('change',()=>{stopCamera();syncMode();changed();});
 $('auto').addEventListener('change',()=>{if($('auto').checked)changed();else clearTimeout(timer);});
 $('detect').addEventListener('click',detect);
-$('reset').addEventListener('click',()=>{if(photo)photo.close();photo=null;$('photo').value='';$('input-mode').value='synthetic';$('color').value='red';$('object-color').value='red';$('x').value='0';$('y').value='0';$('rotation').value='18';$('visible').checked=true;$('valid-depth').checked=true;$('synthetic-controls').hidden=false;$('upload-controls').hidden=true;changed();});
+$('reset').addEventListener('click',()=>{stopCamera();if(photo)photo.close();photo=null;$('photo').value='';$('input-mode').value='synthetic';$('color').value='red';$('object-color').value='red';$('x').value='0';$('y').value='0';$('rotation').value='18';$('visible').checked=true;$('valid-depth').checked=true;syncMode();changed();});
 $('photo').addEventListener('change',async event=>{
   revision++;if(controller)controller.abort();clearTimeout(timer);blankResults();const version=revision,file=event.target.files[0];if(photo){photo.close();photo=null;}
   if(!file){changed();return;}if(file.size>5*1024*1024){$('error').textContent='图片超过 5 MB，请先缩小。';drawInput();return;}
   try{const decoded=await createImageBitmap(file);if(version!==revision){decoded.close();return;}photo=decoded;changed();}catch(error){$('error').textContent='无法读取该图片，请使用 PNG、JPEG 或 WebP。';drawInput();}
 });
-drawInput();blankResults();connect();
+function syncMode(){
+  $('synthetic-controls').hidden=$('input-mode').value!=='synthetic';$('upload-controls').hidden=$('input-mode').value!=='upload';
+  for(const id of ['camera-controls','live-camera'])$(id).hidden=!cameraMode();
+  $('depth-camera').hidden=cameraMode();$('auto-control').hidden=cameraMode();
+  $('rgb-title').textContent=cameraMode()?'送检帧与识别结果':'RGB 相机';
+  $('detect').textContent=cameraMode()?'拍摄一帧并识别':'调用原代码识别';
+}
+async function refreshCameras(){
+  const selected=$('camera-device').value;
+  try{
+    const devices=await C.list_cameras(camera),options=[new Option('系统默认摄像头','')];
+    for(const device of devices){const option=new Option(device.label+(C.camera_kind(device.label)==='depth'?' / 非彩色接口':''),device.id);option.disabled=C.camera_kind(device.label)==='depth';options.push(option);}
+    $('camera-device').replaceChildren(...options);
+    if(devices.some(device=>device.id===selected))$('camera-device').value=selected;
+  }catch(error){$('error').textContent=C.error_message(error);}
+}
+function stopCamera(){
+  revision++;clearTimeout(timer);if(controller)controller.abort();
+  C.close_camera(camera);$('camera-continuous').checked=false;
+  $('camera-status').textContent='摄像头已关闭';$('live-size').textContent='未打开';updateButtons();
+  if(cameraMode()){drawInput();blankResults();}
+}
+camera.on_disconnect=()=>{stopCamera();$('error').textContent='摄像头已断开或权限被撤销，请连接后重新打开。';};
+$('camera-open').addEventListener('click',async()=>{
+  $('error').textContent='';$('camera-status').textContent='等待摄像头授权 / 打开中…';
+  const opening=C.open_camera(camera,$('camera-device').value);updateButtons();
+  try{
+    const settings=await opening;if(!cameraMode()){C.close_camera(camera);return;}
+    $('camera-status').textContent='本机摄像头已打开 · 仅视频';
+    $('live-size').textContent=[settings.width||'?',settings.height||'?'].join(' × ')+' / RGB';
+    await refreshCameras();if(settings.deviceId)$('camera-device').value=settings.deviceId;
+    if($('camera-device').selectedOptions[0]?.disabled){C.close_camera(camera);throw Error('当前选择的是 Depth / IR 接口，请选择名称以 RGB 结尾的摄像头，或电脑内置摄像头。');}
+    if(ready)detect();
+  }catch(error){if(error.name!=='AbortError'){$('camera-status').textContent='摄像头打开失败';$('error').textContent=C.error_message(error);}}
+  finally{updateButtons();}
+});
+$('camera-stop').addEventListener('click',stopCamera);
+$('camera-refresh').addEventListener('click',refreshCameras);
+if(navigator.mediaDevices?.addEventListener)navigator.mediaDevices.addEventListener('devicechange',refreshCameras);
+$('camera-zoom').addEventListener('change',changed);
+$('camera-continuous').addEventListener('change',()=>{clearTimeout(timer);if($('camera-continuous').checked&&canDetect())detect();});
+document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden&&cameraMode()&&camera.stream&&$('camera-continuous').checked&&!inFlight)detect();});
+window.addEventListener('pagehide',stopCamera);
+if(new URL(location.href).searchParams.get('source')==='camera')$('input-mode').value='camera';
+syncMode();drawInput();blankResults();updateButtons();connect();
 })();
 </script>
 </body>

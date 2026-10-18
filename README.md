@@ -1,5 +1,7 @@
 # PickGo Lab
 
+v0.3.0 · 2026-10-18
+
 PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提供复用原机器人代码的相机识别验证工具。
 
 运动仿真可单文件离线运行；本机服务模式让网页、Python 动作函数和 MCP 共用一个机器人场景。视觉验证执行原 `det_color`、`det_rect` 和 HSV 配置。
@@ -7,6 +9,16 @@ PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提
 项目仓库：[williamtymhuabian/pickgo-lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
 ## 演示与截图
+
+### v0.3.0：RGB 输入与送检帧
+
+下面两张是本轮页面联调截图。合成 RGB-D 图用于检查原视觉函数；视频输入使用浏览器合成测试流，画面标有 `SYNTHETIC TEST STREAM / NO HARDWARE`，没有打开真实摄像头，也不能据此判断 D435 的实物识别效果。
+
+![v0.3.0 合成 RGB-D 输入与原算法检测结果](docs/media/v030-synthetic-vision.png)
+
+![v0.3.0 浏览器合成视频流联调，非真实相机拍摄](docs/media/v030-camera-test-stream.png)
+
+### 离线运动演示
 
 以下素材来自项目实际运行，展示运动学仿真与独立视觉验证；不连接真实机器人，视觉检测尚未接入自动搬运闭环。
 
@@ -81,6 +93,20 @@ python -B app.py
 
 视觉页面支持合成 RGB-D 测试图、位置与角度变化、颜色匹配、本地 RGB 图片、无目标和无效深度测试。输出检测框、中心、像素偏差、原始矩形角度与有效深度。
 
+### 接入内置 / USB 摄像头进行 RGB 识别
+
+```bash
+python -B app.py --vision-only
+```
+
+Windows 可双击 `start-camera.cmd`。打开 <http://127.0.0.1:8767/vision.html?source=camera>，选择摄像头、点击“打开摄像头”，允许浏览器访问相机。支持单帧和连续颜色识别；此模式不需要 Node.js，不启动仿真进程。
+
+已在本机设备列表中确认 RealSense D435 的 RGB 和 Depth 两个接口。**当前选择名称以 RGB 结尾的接口**，或电脑内置的 USB2.0 HD UVC WebCam；已知的 Depth / IR 接口会在列表中禁选。这里只使用彩色画面，深度相机的测距与配准暂缓，不需要安装 RealSense / OpenNI SDK。
+
+检测框对应实际送检帧，实时预览独立显示；中心坐标以 320×240 送检图像为准。连续识别逐帧等待返回，不积压请求。可选择中心放大提高目标占比。原算法包含 0.4 秒等待、颜色占比和轮廓尺寸门槛，当前不是通用物体检测。
+
+只访问视频，不申请麦克风，不录制或保存摄像头图片。切换来源、关闭摄像头或退出页面会释放设备。若内嵌浏览器无法授权，请在本机 Edge / Chrome 打开同一地址。详细排查见 [摄像头说明](docs/camera.md)。
+
 ## 目录
 
 ```text
@@ -95,6 +121,8 @@ app.py                     本机网页与 HTTP 接口
 mcp_server.py              MCP stdio 入口
 mcp.example.json           客户端配置示例
 legacy_vision.py           原识别函数加载与图像/深度适配
+camera.js                  本机视频采集、设备选择、中心裁剪与资源释放
+start-camera.cmd           仅启动摄像头识别（不需要 Node.js）
 start.cmd                  Windows 启动脚本
 requirements.txt           可选视觉功能依赖
 legacy/
@@ -105,7 +133,14 @@ docs/
   usage.md                 详细操作说明
   architecture.md          后续通用机器人平台设计草案
   mcp.md                   MCP 接入、函数入口与协议边界
-  blog/README.md           项目实践说明
+  camera.md                RGB 摄像头操作、实测记录与排查
+  roadmap.md               创新方向与后续实现路线
+  github.md                现有仓库更新说明
+  blog/README.md           v0.3.0 项目实践说明
+experiments/
+  reachability-probe.cjs    固定停车位的可达性探测
+CHANGELOG.md               更新记录
+NOTICE.md                  原代码来源与许可说明
 examples/pick_and_send.py   按步骤调用业务函数的示例
 ```
 
@@ -119,7 +154,7 @@ examples/pick_and_send.py   按步骤调用业务函数的示例
 
 复用：`legacy/utils.py` 中的 `det_color`、`det_rect` 和 `col_dict_daylight_shelf_1`。只按 AST 白名单加载所需定义，不导入整个原模块，不触发 ROS、串口或机器人初始化。页面显示原文件 SHA256 与函数行号；测试校验原文件内容未变。原始文件的来源与归属沿用源项目，没有给原始代码或厂家 SDK 另行声明许可证。
 
-当前视觉页面使用可控二维 RGB-D 测试图，还没有生成三维场景的真实相机投影；自动搬运仍采用简化几何位置，尚未由视觉检测结果闭环驱动。模型不计算抓取力、摩擦或惯性，也没有完整机械臂碰撞检测。它适合验证任务流程和初步几何可达性。
+当前视觉页面支持真实 RGB 摄像头、本地图片及可控二维 RGB-D 测试图。尚未生成三维场景的真实相机投影，也未接入真实深度流；自动搬运仍采用简化几何位置，尚未由视觉检测结果闭环驱动。模型不计算抓取力、摩擦或惯性，也没有完整机械臂碰撞检测。它适合验证任务流程和初步几何可达性。
 
 ## 测试
 
@@ -129,9 +164,10 @@ examples/pick_and_send.py   按步骤调用业务函数的示例
 node tests/simulation.test.cjs
 python -B tests/test_vision.py
 python -B tests/test_mcp.py
+node tests/camera.test.cjs
 ```
 
-共 27 项测试，覆盖正逆运动学、三种目标搬运、底盘避障与互锁、暂停取消、颜色/中心/角度、有效深度、原文件完整性、本机 HTTP、MCP stdio 协议和网页/MCP 共用状态。纯运动与 MCP 动作测试不需要 OpenCV；完整视觉测试需要 requirements 中的可选依赖。
+本轮共 36 项测试通过：运动核心 9 项、摄像头辅助模块 8 项、视觉接口 10 项、MCP 与集成 9 项。包括正逆运动学、搬运与互锁、权限取消、超时、设备释放、断开、画面缩放、RGB/Depth 接口区分、视觉检测和共享状态；新增回归检查覆盖识别请求取消后服务继续可用。摄像头模块及页面联调使用测试视频流，不代表真实设备已完成识别验收。
 
 详细说明见 [操作说明](docs/usage.md)，后续硬件与平台方案见 [架构草案](docs/architecture.md)。
 
@@ -143,6 +179,12 @@ python -B tests/test_mcp.py
 - MCP 和共享仿真同样需要本地程序；静态博客展示的是独立离线运动演示。
 
 压缩包不包含 Git 元数据、Python 环境、临时图片、厂家 SDK 或原始控制工程的大型二进制。
+
+## 项目状态与开发
+
+本版聚焦离线运动仿真、本机共享控制和 RGB 视觉验证。真实深度相机、视觉控制闭环及实体机器人驱动尚未完成；暂停的 OpenNI 原型不包含在本上传版中。D435 的 RGB 采集与送检已连通，真实物体颜色识别仍需结合光照和原 HSV 阈值验收。
+
+更新记录见 [CHANGELOG](CHANGELOG.md)，创新方案见 [后续路线](docs/roadmap.md)，可复现实验见 `experiments/reachability-probe.cjs`，上传说明见 [GitHub](docs/github.md)。原代码来源及许可状态见 [NOTICE](NOTICE.md)。
 
 ## AI 协作致谢
 
