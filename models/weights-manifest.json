@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "name": "NanoDet-m-plus-1.5x-416",
+      "filename": "object_detection_nanodet_2022nov.onnx",
+      "bytes": 3800954,
+      "sha256": "4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186",
+      "revision": "510899a2a0adb8c25957915fd030d66dbd553919",
+      "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/510899a2a0adb8c25957915fd030d66dbd553919/models/object_detection_nanodet/object_detection_nanodet_2022nov.onnx",
+      "license": "Apache-2.0",
+      "license_url": "https://raw.githubusercontent.com/opencv/opencv_zoo/510899a2a0adb8c25957915fd030d66dbd553919/models/object_detection_nanodet/LICENSE",
+      "destination": "models/object_detection_nanodet_2022nov.onnx",
+      "required_for": [
+        "object detection"
+      ],
+      "not_required_for": [
+        "manual GrabCut",
+        "observation assessment",
+        "geometry comparison"
+      ]
+    }
+  ],
+  "runtime_downloads_automatically": false
+}

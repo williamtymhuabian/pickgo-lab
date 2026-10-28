@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+.runtime/
 
 # Local settings and credentials
 .env
@@ -19,6 +20,8 @@ Thumbs.db
 recordings/
 captures/
 downloads/
+models/*.onnx
+models/*.part
 *.so
 *.dll
 *.exe

@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const v=require('../vision_helpers.js');
+const source=new Uint8ClampedArray([20,40,80,255,90,100,110,255,3,4,5,128]);
+const mask=new Uint8ClampedArray([0,0,0,255,255,255,255,255,255,255,255,255]);
+assert.deepEqual([...v.apply_mask_rgba(source,mask)],[20,40,80,0,90,100,110,255,3,4,5,128]);
+assert.equal(source[3],255);
+assert.throws(()=>v.apply_mask_rgba(source,new Uint8ClampedArray(4)),/dimensions/);
+assert.deepEqual(v.image_point(260,180,{left:100,top:60,width:640,height:480},320,240),[80,60]);
+assert.deepEqual(v.image_point(0,999,{left:100,top:60,width:640,height:480},320,240),[0,240]);
+assert.deepEqual(v.ordered_roi([230,190],[50,25]),[50,25,230,190]);
+assert.throws(()=>v.image_point(2,3,{left:0,top:0,width:0,height:2},320,240),/visible/);
+console.log('PASS 透明前景保持颜色与原透明度、尺寸校验、显示到图像坐标转换、反向框选与边界约束（7 项）');

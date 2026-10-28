@@ -1,10 +1,18 @@
 # PickGo Lab
 
-更新于 2026-10-18
+v0.6.0 · 2026-10-28
+
+D435 真实 RGB-D：同帧彩色图、配准深度图、点选测距及目标中心深度。选择“RealSense RGB-D / 真实测距”后打开，见 [使用与测量边界](docs/realsense-depth.md)。不自动保存照片或录像。
+
+中文语音播报：支持试音、播报当前目标、自动播报及停止，见 [使用说明与实测边界](docs/speech.md)。TTS 不申请麦克风或调用云服务。
 
 PickGo Lab 是一个轻量的底盘＋机械臂运动学仿真项目，同时提供复用原机器人代码的相机识别验证工具。
 
+新增常见物体识别与前景分割：NanoDet COCO 80 类检测、检测框引导 GrabCut、手动框选 GrabCut。复用现有 OpenCV，模型约 3.8 MB，按需下载，无需 PyTorch。它是检测与传统前景提取的组合，尚不是训练好的实例分割网络。详见 [物体识别与分割](docs/objects.md)。
+
 运动仿真可单文件离线运行；本机服务模式让网页、Python 动作函数和 MCP 共用一个机器人场景。视觉验证执行原 `det_color`、`det_rect` 和 HSV 配置。
+
+支持连续帧位置检查、旧帧失效、框提示分割敏感性评估及不含图像的 JSON 记录，提供只读 MCP 工具 `assess_observation`。双击 `start-observation.cmd` 启动，按 [摄像头实操](docs/camera-validation-2026-10-24.md) 验证。新增观测功能无需额外权重；本机 NanoDet 校验通过时不必重复下载。
 
 项目仓库：[williamtymhuabian/pickgo-lab](https://github.com/williamtymhuabian/pickgo-lab)。
 
@@ -81,7 +89,7 @@ python -B app.py
 
 MCP 客户端以 stdio 启动 `mcp_server.py` 即可；默认连接上面的本机服务，不会另建场景。配置示例见 [mcp.example.json](mcp.example.json)，把 Python 和脚本路径改为你电脑上的路径。详见 [MCP 接入说明](docs/mcp.md)。当前支持经典 MCP 协议的 stdio/tools 子集，不需要安装 MCP SDK。
 
-可用工具：`get_capabilities`、`get_robot_state`、`grab_and_send`、`pause_task`、`resume_task`、`stop_task`、`reset_scene`、`det_color`。启动任务立即返回 `task_id`，随后查询状态；共享模式下网页关闭或 MCP 客户端退出，已接收任务仍由 `app.py` 执行。
+可用工具：`get_capabilities`、`get_robot_state`、`grab_and_send`、`pause_task`、`resume_task`、`stop_task`、`reset_scene`、`det_color`、`detect_objects`、`assess_observation`。启动任务立即返回 `task_id`，随后查询状态；共享模式下网页关闭或 MCP 客户端退出，已接收任务仍由 `app.py` 执行。
 
 ### 可选：运行原代码视觉验证
 
@@ -111,11 +119,39 @@ python -B app.py --vision-only
 
 Windows 可双击 `start-camera.cmd`。打开 <http://127.0.0.1:8767/vision.html?source=camera>，选择摄像头、点击“打开摄像头”，允许浏览器访问相机。支持单帧和连续颜色识别；此模式不需要 Node.js，不启动仿真进程。
 
-已在本机设备列表中确认 RealSense D435 的 RGB 和 Depth 两个接口。**当前选择名称以 RGB 结尾的接口**，或电脑内置的 USB2.0 HD UVC WebCam；已知的 Depth / IR 接口会在列表中禁选。这里只使用彩色画面，深度相机的测距与配准暂缓，不需要安装 RealSense / OpenNI SDK。
+普通浏览器摄像头模式选择 D435 名称以 RGB 结尾的接口，或内置 / USB 彩色摄像头；已知的 Depth / IR 接口会在列表中禁选。此模式只读取彩色画面，不需要 RealSense / OpenNI SDK。真实测距请使用下面的独立 RGB-D 入口。
 
-检测框对应实际送检帧，实时预览独立显示；中心坐标以 320×240 送检图像为准。连续识别逐帧等待返回，不积压请求。可选择中心放大提高目标占比。原算法包含 0.4 秒等待、颜色占比和轮廓尺寸门槛，当前不是通用物体检测。
+检测框对应实际送检帧，实时预览独立显示；中心坐标以 320×240 送检图像为准。连续识别逐帧等待返回，不积压请求。可选择中心放大提高目标占比。原颜色算法包含 0.4 秒等待、颜色占比和轮廓尺寸门槛；常见物体识别使用下面的 NanoDet 模式。
 
 只访问视频，不申请麦克风，不录制或保存摄像头图片。切换来源、关闭摄像头或退出页面会释放设备。若内嵌浏览器无法授权，请在本机 Edge / Chrome 打开同一地址。详细排查见 [摄像头说明](docs/camera.md)。
+
+### 识别常见物体与提取前景
+
+已有视觉依赖时运行：
+
+```bash
+python -B setup_objects.py
+python -B app.py --vision-only
+```
+
+打开 <http://127.0.0.1:8767/vision.html?task=objects>，选择“常见物体检测”或“物体检测＋前景分割”，再选择本地图片或手动打开 RGB 摄像头。也可选择“手动框选前景分割”，冻结一帧后拖动框选，这个模式不需要下载模型。检测与分割不启动搬运。详见 [使用说明与限制](docs/objects.md)。
+
+### D435 彩色 / 深度同帧显示与测距
+
+先准备可选 RealSense SDK，再启动本机服务：
+
+```powershell
+python -B -m pip install --no-deps --only-binary=:all: --index-url https://pypi.org/simple --target .runtime/realsense -r requirements-depth.txt
+python -B app.py --vision-only
+```
+
+打开 <http://127.0.0.1:8767/vision.html?source=realsense&task=objects>，点击“打开摄像头”。物体识别还需先运行 `python -B setup_objects.py`。页面同时显示彩色送检图和已配准的深度伪彩图；点击图像或目标可查看该帧对应位置的光轴深度 Z。无效、混合或过期深度不显示距离。
+
+真实 D435 已完成采集、配准、页面显示和点选测距连通验证；未做尺具精度标定，金属保温杯表面可能缺深度。完整安装、测量定义与限制见 [RGB-D 说明](docs/realsense-depth.md)。普通 RGB 模式不需要此 SDK。
+
+### 中文播报识别结果
+
+在视觉页面点击“试音”或“播报当前结果”；勾选“自动播报识别结果”并连续识别，可限频播报类别。“停止播报”同时关闭自动播报。Windows 使用本机中文语音，其他平台可使用浏览器已有的本地中文语音，不调用云服务。详见 [TTS 说明](docs/speech.md)。
 
 ## 目录
 
@@ -131,7 +167,21 @@ app.py                     本机网页与 HTTP 接口
 mcp_server.py              MCP stdio 入口
 mcp.example.json           客户端配置示例
 legacy_vision.py           原识别函数加载与图像/深度适配
+object_vision.py           NanoDet 物体检测与 GrabCut 前景分割，函数式入口
+observation_quality.py     同帧框扰动分割敏感性评估，不需要权重
+observation_state.js       新鲜帧检查与独立运动学对照
+observation_ui.js          观测建议、人工复核与无图 JSON 报告
+setup_objects.py           可选小模型下载、固定版本与 SHA256 校验
+download-weights.cmd       按需准备物体识别模型
+start-observation.cmd      启动观测验证，不自动打开摄像头
+vision_helpers.js          掩膜透明度与显示/图像坐标转换
+models/                    模型说明与许可证；本机 ONNX 被 Git 忽略
 camera.js                  本机视频采集、设备选择、中心裁剪与资源释放
+realsense_camera.py        可选 D435 SDK 采集、配准、同帧测距与释放
+depth_client.js            RGB-D 页面会话、帧号及点选测距
+speech_audio.py            Windows 本地中文语音，在内存中生成音频
+vision_speech.js           中文类别映射、播放、去重和限频
+requirements-depth.txt     可选 RealSense 运行库固定版本
 start-camera.cmd           仅启动摄像头识别（不需要 Node.js）
 start.cmd                  Windows 启动脚本
 requirements.txt           可选视觉功能依赖
@@ -144,9 +194,9 @@ docs/
   architecture.md          后续通用机器人平台设计草案
   mcp.md                   MCP 接入、函数入口与协议边界
   camera.md                RGB 摄像头操作、实测记录与排查
+  objects.md               物体识别、框选分割、模型准备与 MCP
   roadmap.md               创新方向与后续实现路线
-  github.md                现有仓库更新说明
-  blog/README.md           摄像头实践与深度开发路线
+  github.md                GitHub 上传说明
 experiments/
   reachability-probe.cjs    固定停车位的可达性探测
 CHANGELOG.md               更新记录
@@ -164,20 +214,24 @@ examples/pick_and_send.py   按步骤调用业务函数的示例
 
 复用：`legacy/utils.py` 中的 `det_color`、`det_rect` 和 `col_dict_daylight_shelf_1`。只按 AST 白名单加载所需定义，不导入整个原模块，不触发 ROS、串口或机器人初始化。页面显示原文件 SHA256 与函数行号；测试校验原文件内容未变。原始文件的来源与归属沿用源项目，没有给原始代码或厂家 SDK 另行声明许可证。
 
-当前视觉页面支持真实 RGB 摄像头、本地图片及可控二维 RGB-D 测试图。尚未生成三维场景的真实相机投影，也未接入真实深度流；自动搬运仍采用简化几何位置，尚未由视觉检测结果闭环驱动。模型不计算抓取力、摩擦或惯性，也没有完整机械臂碰撞检测。它适合验证任务流程和初步几何可达性。
+当前视觉页面支持真实 RGB 摄像头、本地图片、可控二维 RGB-D 测试图及 D435 配准 RGB-D，提供颜色检测、常见物体检测、框提示前景提取、点选测距和中文播报。深度为相机光轴 Z，不是机械臂坐标或抓取位姿；自动搬运仍采用简化几何位置，尚未由视觉检测结果闭环驱动。运动模型不计算抓取力、摩擦或惯性，也没有完整机械臂碰撞检测。
 
 ## 测试
 
 已验证环境：Python 3.11.7、NumPy 1.26.4、OpenCV 4.11.0.86。运动核心测试只使用 Node.js 内置模块，无 npm 依赖。
 
 ```bash
-node tests/simulation.test.cjs
-python -B tests/test_vision.py
-python -B tests/test_mcp.py
-node tests/camera.test.cjs
+python -B -m unittest discover -s tests -p 'test_*.py'
+node --test tests/*.test.cjs
 ```
 
-本轮共 36 项测试通过：运动核心 9 项、摄像头辅助模块 8 项、视觉接口 10 项、MCP 与集成 9 项。包括正逆运动学、搬运与互锁、权限取消、超时、设备释放、断开、画面缩放、RGB/Depth 接口区分、视觉检测和共享状态；新增回归检查覆盖识别请求取消后服务继续可用。摄像头模块及页面联调使用测试视频流，不代表真实设备已完成识别验收。
+原有 27 项测试覆盖正逆运动学、三种目标搬运、底盘避障与互锁、暂停取消、颜色/中心/角度、有效深度、原文件完整性、本机 HTTP、MCP stdio 协议和网页/MCP 共用状态。另有 8 项摄像头辅助模块测试，覆盖权限取消、超时、设备释放、断开、画面缩放与 RealSense 接口区分。摄像头模块测试使用假视频流，不代表真实设备已完成识别验收。
+
+v0.4.0 增加物体/分割后端测试和前端图像辅助断言。公开图片已验证人物和足球检测、前景掩膜与手动框选；10 月 24 日又完成真实 D435 画面上的识别与分割连通测试，记录见 [RGB 实测](docs/camera-smoke-test-2026-10-24.md)。
+
+v0.5.0 增加 11 项观测评估后端检查与 16 项观测状态/运动学/报告检查，覆盖重复视频帧、证据过期、累计漂移、同帧自适应预算、空前景、HTTP / MCP 只读入口和下载清单。页面已用合成图验证三次/五次评估，摄像头未在本次开发中打开。分割一致性不是准确率；运动学示例与相机没有空间绑定。
+
+2026-10-28 同步版本完整 Python 回归 66 项通过，全部 JavaScript 测试通过，并保留线上已有的取消请求回归。自动测试使用假相机，不自动打开硬件；真实设备采集、点选和播报验证另见 [RGB-D](docs/realsense-depth.md) 与 [语音实测](docs/speech.md)。历史 v0.5.0 记录见 [验证记录](docs/validation-2026-10-23.md)。
 
 详细说明见 [操作说明](docs/usage.md)，后续硬件与平台方案见 [架构草案](docs/architecture.md)。
 
@@ -192,9 +246,9 @@ node tests/camera.test.cjs
 
 ## 项目状态与开发
 
-本版聚焦离线运动仿真、本机共享控制和 RGB 视觉验证。真实深度相机、视觉控制闭环及实体机器人驱动尚未完成；暂停的 OpenNI 原型不包含在本上传版中。D435 的 RGB 采集与送检已连通，真实物体颜色识别仍需结合光照和原 HSV 阈值验收。
+本版包含离线运动仿真、本机共享控制和 RGB / RGB-D 视觉验证。D435 实机采集、配准、点测距及中文播报已经连通；金属保温杯仍有 cup/bottle 混淆、漏检和深度空洞，不能据此宣称稳定识别或测量精度。视觉控制闭环、手眼标定及实体机器人驱动尚未完成；暂停的 OpenNI 原型不包含在本上传版中。
 
-更新记录见 [CHANGELOG](CHANGELOG.md)，创新方案见 [后续路线](docs/roadmap.md)，可复现实验见 `experiments/reachability-probe.cjs`，上传说明见 [GitHub](docs/github.md)。原代码来源及许可状态见 [NOTICE](NOTICE.md)。
+更新记录见 [CHANGELOG](CHANGELOG.md)，创新方案见 [后续路线](docs/roadmap.md)，下一次研究与实操安排见 [2026-10-19 实验计划](docs/plan-2026-10-19.md)，可复现实验见 `experiments/reachability-probe.cjs`，上传说明见 [GitHub](docs/github.md)。原代码来源及许可状态见 [NOTICE](NOTICE.md)。
 
 ## AI 协作致谢
 

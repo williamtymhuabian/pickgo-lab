@@ -33,7 +33,7 @@ def request_local(context, path, payload=None):
     try:
         # 回环请求不走系统代理，也不跟随跳转。
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
-        with opener.open(request, timeout=8) as response:
+        with opener.open(request, timeout=35 if path in ("/api/vision/objects", "/api/vision/assess") else 8) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         try:
@@ -87,9 +87,9 @@ def reset_scene(context):
 def get_capabilities(context):
     return {"name": APP["name"], "version": APP["version"], "backend": "sim",
             "robot": ROBOT["sim"], "targets": GRAB, "state_shared_with_web": bool(context["server_url"]),
-            "vision": "original det_color / det_rect; optional OpenCV RGB-D input",
+            "vision": "original color detector; optional NanoDet COCO objects; box-prompted GrabCut segmentation; local Chinese TTS; optional RealSense aligned RGB-D in web UI",
             "vision_dependencies_installed": all(importlib.util.find_spec(x) is not None for x in ("cv2", "numpy")),
-            "limitations": ["kinematic simulation", "no real camera driver", "no vision feedback in motion tasks",
+            "limitations": ["kinematic simulation", "RealSense RGB-D requires optional SDK and explicit web session; no MCP camera stream", "no vision feedback in motion tasks",
                             "no hardware backend", "no MCP task extension; poll get_robot_state with task_id"]}
 
 
@@ -110,8 +110,28 @@ def close(context):
         robot_driver.close(context["robot"])
 
 
+def detect_objects(context, frame, task="objects", confidence_pct=40, target_class="all", roi=None):
+    payload = {**frame, "task": task, "confidence_pct": confidence_pct,
+               "classes": [] if target_class == "all" else [target_class], "roi": roi}
+    if context["server_url"]:
+        return request_local(context, "/api/vision/objects", payload)
+    from app import detect_objects_frame
+    if context.get("objects") is None:
+        from object_vision import all_init as objects_init
+        context["objects"] = objects_init()
+    return detect_objects_frame(context["objects"], payload)
+
+
 def schema(properties=None, required=None):
     return {"type": "object", "properties": properties or {}, "required": required or [], "additionalProperties": False}
+
+
+def assess_observation(context, frame, roi, tolerance_px=6, max_samples=5, policy="adaptive"):
+    payload = {**frame, "roi": roi, "tolerance_px": tolerance_px, "max_samples": max_samples, "policy": policy}
+    if context["server_url"]:
+        return request_local(context, "/api/vision/assess", payload)
+    from app import assess_observation_frame
+    return assess_observation_frame(payload)
 
 
 # 与原项目 switch_case 字典一样，将外部名称映射到明确的动作函数。
@@ -138,10 +158,27 @@ TOOL = {
     }, ["frame"]), True),
 }
 
+# 复用 PNG 帧约定；只读视觉工具不会自动启动搬运任务或打开摄像头。
+TOOL["detect_objects"] = (detect_objects, "识别传入 PNG 中的 COCO 物体，或用框选 GrabCut 提取前景。结果为像素坐标，不执行机器人动作。", schema({
+    "frame": TOOL["det_color"][2]["properties"]["frame"],
+    "task": {"type": "string", "enum": ["objects", "segment", "manual"]},
+    "confidence_pct": {"type": "integer", "minimum": 10, "maximum": 95},
+    "target_class": {"type": "string"},
+    "roi": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4},
+}, ["frame"]), True)
+
+TOOL["assess_observation"] = (assess_observation, "对同一 PNG 帧的框选区域做 3–5 次 GrabCut 敏感性评估；无权重、只读，不代表正确率、实时新鲜度或抓取许可。", schema({
+    "frame": TOOL["det_color"][2]["properties"]["frame"],
+    "roi": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4},
+    "tolerance_px": {"type": "integer", "minimum": 1, "maximum": 30},
+    "max_samples": {"type": "integer", "enum": [3, 5]},
+    "policy": {"type": "string", "enum": ["adaptive", "fixed"]},
+}, ["frame", "roi"]), True)
+
 
 def validate(value, rule):
     kind = rule["type"]
-    correct = {"object": isinstance(value, dict), "string": isinstance(value, str),
+    correct = {"object": isinstance(value, dict), "string": isinstance(value, str), "array": isinstance(value, list),
                "integer": type(value) is int}[kind]
     if not correct:
         raise ValueError("Expected " + kind)
@@ -149,6 +186,11 @@ def validate(value, rule):
         raise ValueError("Value is not in the allowed list")
     if kind == "integer" and not rule.get("minimum", value) <= value <= rule.get("maximum", value):
         raise ValueError("Integer exceeds allowed range")
+    if kind == "array":
+        if not rule.get("minItems", 0) <= len(value) <= rule.get("maxItems", len(value)):
+            raise ValueError("Array length exceeds allowed range")
+        for item in value:
+            validate(item, rule["items"])
     if kind == "object":
         if set(value) - set(rule["properties"]):
             raise ValueError("Unknown argument")

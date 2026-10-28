@@ -18,10 +18,8 @@ git pull --ff-only
 ## 本地验证
 
 ```bash
-node tests/simulation.test.cjs
-node tests/camera.test.cjs
-python -B tests/test_vision.py
-python -B tests/test_mcp.py
+node --test tests/*.test.cjs
+python -B -m unittest discover -s tests -p 'test_*.py'
 node experiments/reachability-probe.cjs
 ```
 
@@ -34,7 +32,7 @@ git diff --stat
 git add .
 git diff --cached --stat
 git diff --cached --check
-git commit -m "Update PickGo Lab to v0.3.0"
+git commit -m "Update PickGo Lab vision features"
 git push origin main
 ```
 

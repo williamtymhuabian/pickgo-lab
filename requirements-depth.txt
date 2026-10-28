@@ -1,0 +1,2 @@
+# Optional RealSense runtime; ordinary RGB and TTS do not require it.
+pyrealsense2==2.59.1.11053

@@ -35,6 +35,10 @@
 
 ## 按原项目习惯扩展
 
+v0.5.0 新增只读 `assess_observation`：参数 `frame` 使用同一 PNG 帧格式，`roi:[x1,y1,x2,y2]` 为该帧内的整数框，`tolerance_px` 为 1–30 整数（默认 6），`max_samples` 为 3 或 5（默认 5），`policy` 为 `adaptive` 或 `fixed`。不需要 NanoDet 权重，需要 OpenCV / NumPy。返回候选分割指标、共同前景掩膜及建议；不打开相机、不发送运动指令，也不替调用者收集连续观测。`robot_execution_authorized` 始终为 false。MCP 调用者需自行提供帧并检查新鲜度，页面的连续帧跟踪状态属于前端。详见 [实操与指标边界](camera-validation-2026-10-24.md)。
+
+v0.4.0 新增只读 `detect_objects` 工具。`task` 可选 `objects`（物体检测）、`segment`（检测＋GrabCut 前景）、`manual`（手动框选前景）；共用现有 PNG 帧格式。`confidence_pct` 为 10–95 整数，`target_class` 为 `all` 或 COCO 英文类别名，手动模式需要 `roi:[x1,y1,x2,y2]`。输入与结果都是当前图像像素，不打开摄像头或执行运动。模型准备、返回掩膜格式与分割边界见 [物体与分割说明](objects.md)。
+
 `Constants.py` 的 APP / ROBOT / GRAB 对应配置字典；`utils.py` 的 all_init / grab_and_send / pause_task 等对应动作函数；TOOL 字典对应原项目按名称分发的写法。`examples/pick_and_send.py` 展示“初始化 → 启动 → 等结果”的明确步骤。
 
 增加业务动作时，先写普通函数及输入检查，再加入 TOOL 的名称、描述和 JSON Schema；网页、脚本和 MCP 可复用相同函数。接实体设备时修改 robot.py 后端，不能把 sim 返回值直接当作硬件回执；当前只有 sim，其他后端会直接拒绝初始化。
